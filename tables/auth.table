@@ -1,0 +1,3 @@
+ourlib.nonapp.AuthAPI		auth		*		[]					void				{Auth}
+ourlib.nonapp.AuthAPI		access		*		[]					(String, {Lit})		{Acc}
+ourlib.nonapp.AuthAPI		output		*		[(String, {Lit})]	void				{}

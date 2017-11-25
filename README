@@ -1,0 +1,335 @@
+CONTENTS
+========
+- Overview
+- Prerequisites
+- Building
+- Execution
+- Example
+- Issues
+
+
+OVERVIEW
+========
+
+The TSA tool detects possible violations by a Java program of a
+programming guideline, expressed as a regular property. The tool
+implements the type-based approach presented in the following
+conference paper:
+
+  Serdar Erbatur, Martin Hofmann and Eugen Zalinescu.
+  Enforcing Programming Guidelines with Region Types and Effects.
+	APLAS 2017.
+
+We refer to this paper for more details about the tool's usage
+context, and for the theory behind the tool.
+
+
+We give next an overview of the tool's inputs. See the Execution
+section for how these inputs are concretely provided to the tool.  See
+also the Example section below for an concrete illustration of the
+tool's usage.
+
+
+* Policy or programming guideline:
+
+The tool's goal is to check if a Java program follows a given
+policy, which describes a programming guideline that should be
+followed in order to avoid a vulnerability. For instance, one may
+state in plain language that, to avoid SQL injection attacks, input 
+strings from the user must be sanitized. 
+
+The policy is formalized as a regular language of valid execution
+traces specifying the desired property, e.g. untaintedness of input
+strings.  The letters of the underlying alphabet stand for relevant
+actions performed during program execution, like the action of
+sanitization functions.
+
+In more detail, the policy is specified by the syntactic monoid of the
+automaton formalizing the regular language, with an allowed subset of
+elements. For convenience, we provide a simple program (called
+'SyntacticMonoid') that translates a finite automaton into a syntactic
+monoid. Apart from that, the tool currently has three built-in
+monoids. New monoids can be added by providing the corresponding Java
+class in the "monoids" package in the source code of the tool.
+
+
+* Analyzed program:
+
+The input program is provided as a set of application classes (that
+is, classes which are analyzed), an entry point (namely, a method in
+an application class), and a set of library classes (that is, the
+remaining classes, which are not analyzed). We distinguish and specify
+two kinds of library methods:
+
+(1) methods that have only strings as input and output
+
+For such methods we provide their semantic behavior and typing by
+hand. Concretely, these are provided in a text file in the 'tables'
+directory. As their type and effects depend on the guideline, there is
+such a file for each monoid, named '<monoid>.table', where <monoid> is
+the name of the monoid (see the Execution section).
+
+(2) methods that take and return parameters other than strings
+
+We use mockup code to represent their implementation, so as to obtain
+a model that is relevant to the analysis. Mockup classes are thus also
+analyzed, and are strictly speaking also application classes (in Soot's
+terminology). The tool already comes up with a number of mockup classes. 
+If needed, new mockup classes should be added to the 'mockup' packages.
+
+
+
+
+PREREQUISITES
+=============
+
+* Java (for compilation) [tested with Java 8]
+
+External libraries:
+* Soot [tested with the nightly build, version from 2017-06-08]
+(downloadable from: https://soot-build.cs.uni-paderborn.de/public/origin/develop/soot/soot-develop/build/sootclasses-trunk-jar-with-dependencies.jar)
+* JUnit [tested with version 4.11]
+* SLF4J [tested with version 1.7.5]
+* J2EE  [tested with version 1.4]
+
+
+BUILDING
+========
+
+To build the tool, one can use Eclipse [tested with Eclipse IDE for
+Java Developers Neon.2 Release (4.6.2)]: simply import the (two)
+project(s) (File > Import... > General > Projects from Folder or
+Archive) and add the dependency to the Build Path.
+
+(The directories 'src', 'ourlib', 'examples', 'tests' are source
+directories.)
+
+EXECUTION
+=========
+
+The tool takes 5 arguments, two of them optional, and it can be
+invoked from the command line as follows:
+
+Main <app_path> <class> <method> <monoid> [<log-level>] [<to-file>]
+
+
+Our tool is implemented on top of Soot. To run Soot properly, we need
+to specify the Soot classpath, which specifies where application
+classes are to be found. (The Soot classpath may be different than the
+Java classpath). To determine the Soot classpath one has to provide
+the prefix of this path through the 'config.properties' file, which
+should be placed in the tool's top directory (that is, 'sootTSA').
+This file should contain one line with the corresponding prefix, for
+instance:
+  prefix = /home/eugen/elucru/stringanalysis
+
+To test the securibench-micro examples, the "securibench-micro"
+distribution should at the top level of the directory specified by
+this path.
+
+Now, we explain command line arguments: 
+
+0) <app_path>: the path to the analyzed application
+
+This is the path to the class containing the entry point of the
+program being analyzed. The path is either relative to the value of
+the Java property "prefix", and read from the config.properties file;
+or, if either this file or this key does not exist, then it is
+relative to the parent directory (of the tool's top directory).
+
+1) <class>: the name of the class containing the program entry point
+
+  Note that only the class name should be provided, rather than a path
+  to the corresponding Java (source code or byte code) file. The path
+  should be given in the first argument (<app_path>).
+
+2) <method>: the program's entry point (i.e. a method name)
+
+  It specifies which Java code the tool should analyze, namely the
+  body of the given method. This can be for instance the 'main' method
+  in a regular Java application, or the 'doGet' method in a typical
+  web application.
+
+3) <monoid>: the monoid name
+
+  Our tool uses this name to choose the correct monoid. Currently
+  monoids are manually specified through Java classes placed in the
+  'monoids' package of our implementation. Currently the following
+  monoids are specified: "binary", "xss", and "authorization".
+
+4) <log-level>: the debugging level (from FINEST to SEVERE, see
+   java.util.Logging.Level; FINEST corresponds to highest amount of
+   output messages); the default is WARNING
+
+5) <to-file>: a Boolean flag (i.e. "true" or "false") selecting
+   whether the output is written on the console or in a file ("true"
+   corresponds to file output); the file is DIR/logs/<class>.log,
+   where DIR represents the path to the 'sootTSA' project, and <class>
+   is the argument given at 1); the default is to "true"
+
+
+Finally, see the examples in the Main.java. 
+
+
+When the tool terminates, it outputs the result of the
+analysis. Three outputs are possible:
+- "No error detected."
+- "Possible error detected."
+- "The analysis did not converge in <x> iterations."
+
+"No error detected" means that the guideline is followed by the
+analyzed program.
+
+
+EXAMPLE
+=======
+
+Let us assume we would like to analyze the method doGet of the
+following class, in order to we want to verify if the strings in the
+program are properly sanitized.
+
+public class LibExample {
+	class Data {
+		String value1;
+		String value2;
+	}
+
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+	throws IOException {
+
+		String s1 = req.getParameter("name");		
+		LinkedList<String> ll = new LinkedList<String>();
+		ll.addLast(s1);
+		String s2 = (String) ll.getLast();
+		PrintWriter writer = resp.getWriter();  
+		writer.println(s2);                    /* BAD */
+	}
+}  // (This example is from the simple_ones package in the 'examples' directory.)
+
+We would invoke the tool from the command line as follows:
+
+	> java sootTSA.Main "" simple_ones.LibExample doGet
+
+(assuming the classpath has been properly set)
+
+or, by the running the tool from Eclipse and specifying the arguments
+directly in Main.java with following line:
+
+ 	args = new String[] {"", "simple_ones.LibExample", "doGet", "binary", "FINER", "false"};
+
+We will describe step by step what changes in the tool to run the tool on 
+the given program. 
+
+Before running the program with this input let us go through the
+necessary things to do. We assume we are given only the source code at
+this point. 
+
+* Note that since this is a single file and assuming that the class
+  file path is in the folder of the tool, the first entry is empty.
+
+* The other entries except "binary" are clear. The string "binary"
+means we use a monoid encoded in BinaryMonoid.java in the tool. Let us
+now explain details of monoid encoding.
+
+Step1:  We need to design the syntactic monoid.
+Recall that a monoid is an algebraic structure over a set with
+an associative operator with a unit element. We want to analyze if the
+strings are properly used. That is, strings provided by user must be
+sanitized. Let us take the set (of monoid) as the strings in the source
+program. Let 'U' and 'T' stand for untainted and tainted strings,
+respectively.Regarding the monoid operator, if two untainted strings
+are concatenated, then the resulting string is untainted, i.e., U + U --> U. 
+Otherwise, the result becomes tainted anyway. This summarizes the main 
+idea behind the syntactic monoid which has 'U' as neutral element and 
+concatenation as the operator. We implement this as follows (imports and 
+some minor methods are omitted):
+
+public enum BinaryMonoid {
+	T, U;
+	
+	private static Map<Pair<Monoid, Monoid>, Monoid> table =
+	                   new HashMap<Pair<Monoid, Monoid>, Monoid>();	
+	static {
+		table.put(new Pair<Monoid, Monoid>(U, U), U);
+		table.put(new Pair<Monoid, Monoid>(U, T), T);
+		table.put(new Pair<Monoid, Monoid>(T, U), T);
+		table.put(new Pair<Monoid, Monoid>(T, T), T);
+	}
+
+	public Monoid neutralElement() {
+		return U;
+	}
+
+	@Override
+	public Monoid op(Monoid x, Monoid y) {
+		Pair<Monoid, Monoid> p = new Pair<Monoid, Monoid>(x, y);
+		return table.get(p);
+	}
+// see BinaryMonoid class in the monoids package for complete code. 
+}
+
+Alternatively, one can use the simple companion tool called
+SyntacticMonoid which, given a finite-state automaton, generates the
+corresponding syntactic monoid.
+
+Step2: We must define typings for built-in (static) methods 
+and mock-up code for external library methods. All these ingredients must 
+be placed under appropriate packages of the tool (NOTE: we are working on 
+adding those in a more convenient manner.).
+
+Let's look at the program in question again: 
+
+(i) the methods getParameter() and println() which take and returns strings only
+(ii) the methods addLast() and getLast() which return objects other than strings.
+
+For the methods getParameter() and println() we define their built-in typing in 
+the built-in method table file defined for the monoid. Here this file is named as 
+"binary.table". We add the following lines into binary.table:
+
+javax.servlet.ServletRequest	getParameter	* [(String, {U})]	(String{T})		{U}
+javax.servlet.ServletRequest	getParameter	*	[(String, {T})]	(String, {T})		{U}
+java.io.PrintWriter					println	*	[(String, {T})]	void	{T}
+java.io.PrintWriter					println	*	[(String, {U})]	void	{U}
+
+(NOTE: The entries should be separated by TABs.)
+
+For the methods addLast() and getLast() we write down the mock-up code
+for their enclosing libray class: LinkedList. We then add the mock-up
+code (here for LinkedList) to the tool, see the package
+mockup.misc. We give here the relevant parts of the mockup code:
+
+public class LinkedList<E> implements Collection<E> {
+	private E x;
+	
+	static {
+		// java.util.LinkedList implements <clinit>. So we need to implement it as well.
+		int z = 1;
+	}
+	
+	public LinkedList() {
+	}
+
+	public LinkedList(E e) {
+		x = e;
+	}
+	
+	
+	void addLast(E e) {
+		x = e;
+	}
+	
+	E getLast() {
+		return x;
+	}
+}
+
+
+Now you can run the tool from Eclipse, using the following line in Main.java:
+
+  args = new String[] {"", "simple_ones.LibExample", "doGet", "binary", "FINER", "false"}
+
+
+
+
+
+

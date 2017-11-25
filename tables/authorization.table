@@ -1,0 +1,5 @@
+ourlib.nonapp.AuthorizationAPI		authFile		*		[]					void				{AuthF}
+ourlib.nonapp.AuthorizationAPI		authPhone		*		[]					void				{AuthPh}
+ourlib.nonapp.AuthorizationAPI		withdrawAuth	*		[]					void				{Wthd}
+ourlib.nonapp.File					access			*		[]					void				{AccF}
+ourlib.nonapp.Phone					access			*		[]					void				{AccPh}
