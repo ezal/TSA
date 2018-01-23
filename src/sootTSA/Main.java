@@ -10,8 +10,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+
 public class Main {
-	// static Logger mainLog = Logger.getLogger("sootTSAdebug");
 	public static Logger mainLog = Logger.getAnonymousLogger();	
 
 	static void setupLogging(Level l, Boolean toFile, String className, String methodName) {
@@ -29,7 +29,6 @@ public class Main {
 				System.exit(1);
 			}
 		} else {
-			// System.setProperty("java.util.logging.SimpleFormatter.format", format);
 			handler = new ConsoleHandler();
 		}
 		handler.setLevel(l); // PUBLISH this level
@@ -47,45 +46,50 @@ public class Main {
 			// 3) a few bigger apps
 			
 			// sample case 1)
-			// args = new String[] {"", "securibench.micro.collections.Collections13", "doGet4", "binary", "FINER", "true"};
-			// args = new String[] {"", "securibench.micro.aliasing.Aliasing4", "doGet", "binary", "FINER", "true"};			
-			// args = new String[] {"", "securibench.micro.inter.Inter6", "doGet", "binary", "FINER", "true"};
-			args = new String[] {"", "securibench.micro.basic.Basic26", "doGet", "binary", "FINER", "true"};
-			// args = new String[] {"", "securibench.micro.session.Session1", "doGet", "binary", "FINER", "true"};
+			// args = new String[] {"", "securibench.micro.collections.Collections13", "doGet3", "binary", "1", "FINER", "true"};
+			// args = new String[] {"", "securibench.micro.aliasing.Aliasing4", "doGet", "binary", "0", "FINER", "true"};			
+			// args = new String[] {"", "securibench.micro.inter.Inter12", "doGet2", "binary", "1", "FINER", "true"};
+			// args = new String[] {"", "securibench.micro.basic.Basic26", "doGet", "binary", "0", "FINER", "true"};
+			// args = new String[] {"", "securibench.micro.session.Session1", "doGet", "binary", "0", "FINER", "true"};
 
 			// sample case 2)
-			// args = new String[] {"", "simple_ones.ExcpExample", "m", "binary", "FINER", "false"};			
-			// args = new String[] {"", "simple_ones.LibExample", "doGet", "binary", "FINER", "false"};
+			args = new String[] {"", "simple_ones.G", "m", "binary", "0", "FINER", "false"};			
+			// args = new String[] {"", "simple_ones.LibExample", "doGet", "binary", "0", "FINER", "false"};
 			// args = new String[] {"", "other_monoids.Authorization", "ok", "authorization", "FINER", "true"};
-			// args = new String[] {"", "simple_ones.ListNode", "ok", "binary", "INFO", "true"};
-			// args = new String[] {"", "simple_ones.Goo", "main", "binary", "FINEST", "true"};
-			// args = new String[] {"", "methodtypings.MT4", "m_bad2", "binary", "FINEST", "true"};
+			// args = new String[] {"", "simple_ones.ListNode", "bad", "binary", "0", "INFO", "true"};
+			// args = new String[] {"", "simple_ones.ObjectArray", "main", "binary", "0", "FINEST", "true"};
+			// args = new String[] {"", "methodtypings.MT4", "m_bad2", "binary", "0", "FINEST", "true"};
 			// args = new String[] {"", "securibenchmicro.sanitizers.Sanitizers1", "doGet", "xss", "FINER", "true"};
 			
 			// sample case 3)
 //			String appPath = "securibench/blueblog/web/WEB-INF/classes";
 //			String epClass = "se.bluefish.blueblog.servlet.ForwardingServlet";	
-//			args = new String[] {appPath, epClass, "doGet", "binary", "FINER", "true"};
+//			args = new String[] {appPath, epClass, "doGet", "binary", "0", "FINER", "true"};
 		}
 		else if (args.length < 4) {
-			System.out.println("Usage: Main <app_path> <class> <method> <monoid> [<log-level>] [<to-file>]");
+			System.out.println("Usage: Main <app_path> <class> <method> <monoid> [<kCFA>] [<log-level>] [<to-file>]");
 			return;
 		}
+
+		// setup the bound on the length of the call string context
+		int kCFA = 0;
+		if (args.length >= 5)
+			kCFA = Integer.parseUnsignedInt(args[4]);
 		
 		// setup the Java logger, for debugging
 		Level level = Level.WARNING;
-		if (args.length >= 5)
-			level = Level.parse(args[4]);
+		if (args.length >= 6)
+			level = Level.parse(args[5]);
 		
 		Boolean toFile = false;
-		if (args.length >= 6)
-			toFile = Boolean.valueOf(args[5]);
+		if (args.length >= 7)
+			toFile = Boolean.valueOf(args[6]);
 
 		TSA tsa = TSA.getInstance();
 		
 		List<String> appClasses = new LinkedList<String>();
 		// List<String> appClasses = Arrays.asList("testers.D");
 
-		tsa.run(args[0], args[1], args[2], args[3], level, toFile, appClasses);
+		tsa.run(args[0], args[1], args[2], args[3], kCFA, level, toFile, appClasses);
 	}
 }

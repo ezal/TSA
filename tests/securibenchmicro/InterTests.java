@@ -1,4 +1,4 @@
-package tests.securibenchmicro;
+package securibenchmicro;
 
 import org.junit.Test;
 
@@ -19,7 +19,7 @@ public class InterTests extends JUnitTests {
 	@Test public void inter10() {oneRun("securibench.micro.inter.Inter10", "doGet", TSA.FAILURE);}
 	@Test public void inter11() {oneRun("securibench.micro.inter.Inter11", "doGet", TSA.FAILURE);}
 	@Test public void inter12() {oneRun("securibench.micro.inter.Inter12", "doGet", TSA.FAILURE);} 
-	@Test public void inter12_2() {oneRun("securibench.micro.inter.Inter12", "doGet", TSA.SUCCESS);} // TODO: is this an example where context-sensitivity is needed?
+	@Test public void inter12_2() {oneRun("securibench.micro.inter.Inter12", "doGet2", 1, TSA.SUCCESS);}
 	@Test public void inter13() {oneRun("securibench.micro.inter.Inter13", "doGet", TSA.FAILURE);}
 	@Test public void inter14() {oneRun("securibench.micro.inter.Inter14", "doGet", TSA.FAILURE);}
 }

@@ -13,8 +13,6 @@ public class Effects {
 		return set;
 	}
 	
-	// TODO: check that we need both cases (ie empty can be true or false)
-	// TODO: this parameter leads to unreadable code (eg what is the new MonoidElemSet(false) doing?). Fix this
 	public Effects(Boolean empty) {
 		set = new HashSet<Monoid>();
 		if (!empty)

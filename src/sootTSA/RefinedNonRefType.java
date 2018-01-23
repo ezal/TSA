@@ -21,14 +21,6 @@ public class RefinedNonRefType extends RefinedType {
 			throw new RuntimeException("join failure");
 	}
 
-//	@Override
-//	public RefinedType meet(RefinedType other) {
-//		if (this.equals(other))
-//			return this;
-//		else
-//			throw new RuntimeException("meet failure");
-//	}
-
 	@Override
 	public Boolean subType(RefinedType other) {
 		return this.equals(other);

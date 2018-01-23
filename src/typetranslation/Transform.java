@@ -1,6 +1,5 @@
 package typetranslation;
 
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +14,6 @@ import soot.SootClass;
 import soot.SootField;
 import soot.SootMethod;
 import soot.Type;
-import sootTSA.Main;
 
 
 public class Transform {
@@ -26,18 +24,18 @@ public class Transform {
 	TypeMap typeMap;
 	
 	public Transform() {
-		// for (String className: TypeMap.nameMap.values()) {
-//		for (Entry<String, String> entry: TypeMap.nameMap.entrySet()) {
-//			String classKey = entry.getKey();
-//			String classVal = entry.getValue();
-//			if (Scene.v().containsClass(classKey)) {
-//				// Main.mainLog.finer("loading " + classVal);
-//				// System.out.println("scene contains " + classKey);
-//				Scene.v().addBasicClass(classVal, SootClass.BODIES);
-//				Scene.v().loadClassAndSupport(classVal).setApplicationClass();
-//			}
-//		}
 		typeMap = new TypeMap();
+	}
+	
+	void updateSuperClass(SootClass c) {
+		if (c.hasSuperclass()) {
+			SootClass sc = c.getSuperclass();
+			if (TypeMap.nameMap.containsKey(sc.getName())) {
+				String tfName = TypeMap.nameMap.get(sc.getName());
+				SootClass tfClass = Scene.v().getSootClass(tfName);
+				c.setSuperclass(tfClass);
+			}
+		}
 	}
 
 	public void transform() {
@@ -48,13 +46,14 @@ public class Transform {
 		//   We do the same for library classes, however we don't update each method's body 
 		//   (since they don't have one), we just update each method's signature.
 		//   A special case are the classes corresponding to those in 'mockup'. For those, 
-		//   we just moved the method declarations from the initial class to the corresponding class in 'mockup', 
-		//   except for those which already have an implementation in 'mockup'. 
+		//   we just move the method declarations from the initial class to the corresponding class in 'mockup', 
+		//   except for those which already have an implementation in 'mockup'.
+		// We also update the the superclass of each class.
 		
 		// 1st phase: build new methods
 		for (SootClass c: Scene.v().getApplicationClasses()) {
 			// System.out.println("transforming " + c);
-			if (!c.getName().startsWith("mockup")) { // we don't transform classes in "mockup"
+			// if (!c.getName().startsWith("mockup")) { // we don't transform classes in "mockup"
 				Iterator<SootField> it = c.getFields().snapshotIterator();
 				while (it.hasNext()) {
 					SootField f = it.next();
@@ -70,17 +69,30 @@ public class Transform {
 					SootMethod newm = transformMethodSig(m, true);
 					methodMap.put(m, newm);					
 				}
-			}
+			// }
+			updateSuperClass(c);
 		}
 		for (SootClass c: Scene.v().getLibraryClasses()) {
 			if (c.resolvingLevel() >= SootClass.SIGNATURES) {
+				// System.out.println("transforming " + c + " (level = " + c.levelToString(c.resolvingLevel()) + ")");
 				Boolean fromOurLib = TypeMap.nameMap.containsKey(c.getName());	
-				// TODO: need to update fields??
+				// NOTE: we might also need to update (non-private) fields
 				for (SootMethod m: c.getMethods()) {
 					SootMethod newm = transformMethodSig(m, false);
 					if (newm != m || fromOurLib)
 						methodMap.put(m, newm);
 				}
+				updateSuperClass(c);
+			}
+		}
+		
+		// remove the superclass for each transformed class
+		// because otherwise its parent will still have a reference to it
+		for (String oldType: TypeMap.nameMap.keySet()) {
+			if (Scene.v().containsClass(oldType)) {
+				SootClass c = Scene.v().getSootClass(oldType);
+				if (!c.isInterface())
+					c.setSuperclass(null);
 			}
 		}
 		
@@ -90,14 +102,14 @@ public class Transform {
 			SootMethod newm = entry.getValue();
 			SootClass c = m.getDeclaringClass();
 			// System.out.println("m = " + m + "  class: " + m.getDeclaringClass());
-			if (!c.getName().startsWith("mockup")) {
+			// if (!c.getName().startsWith("mockup")) {
 				if (c.isApplicationClass() && (c.isConcrete() || (c.isAbstract() && !c.isInterface()))) {
 					// System.out.println("  updating body");
 					Body body = m.retrieveActiveBody();
 					new BodyTransformer(body, methodMap, typeMap);
 					newm.setActiveBody(body);
 				}
-			}
+			// }
 		}
 		
 		// 3rd phase: transform the signatures 
@@ -106,10 +118,10 @@ public class Transform {
 			SootMethod newm = entry.getValue();
 			SootClass c = m.getDeclaringClass();
 			// System.out.println("m = " + m + "  class: " + m.getDeclaringClass());
-			if (!c.getName().startsWith("mockup")) {
+			// if (!c.getName().startsWith("mockup")) {
 				if (c.resolvingLevel() >= SootClass.SIGNATURES) {
 					// System.out.println("  updated signature: " + newm);
-					c.removeMethod(m);
+					c.removeMethod(m);					
 					RefType type = c.getType();
 					RefType newType = typeMap.getNewRefType(type);
 					// System.out.println("  oldType: " + type + "  newType: " + newType);
@@ -118,7 +130,8 @@ public class Transform {
 						SootClass newc = newType.getSootClass();
 						if (!newc.declaresMethod(newm.getSubSignature())) {
 							newc.addMethod(newm);
-							newm.setDeclaringClass(newc);							
+							// newm.setDeclaringClass(newc); // not needed: done by previous call
+							
 //							if (m.getName().equals("<clinit>")) {
 //								System.out.println("  method " + m.getSubSignature() + " from " + c + " declared now also in " + newc);
 //								Body b = m.retrieveActiveBody();
@@ -129,11 +142,11 @@ public class Transform {
 					}
 					else {
 						c.addMethod(newm);
-						newm.setDeclaringClass(c);
+						// newm.setDeclaringClass(c); // not needed, done by previous call!
 						// System.out.println("  updated signature: " + newm);
 					}					
 				}
-			}
+			// }
 		}
 	}
 	

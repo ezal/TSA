@@ -19,28 +19,35 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.logging.Handler;
 import java.util.logging.Level;
+
+import soot.Body;
 import soot.G;
 import soot.Printer;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
+import soot.SootMethodRef;
 import soot.SourceLocator;
+import soot.Type;
+import soot.Unit;
+import soot.VoidType;
+import soot.jimple.InvokeExpr;
+import soot.jimple.InvokeStmt;
+import soot.jimple.Jimple;
+import soot.jimple.Stmt;
 import soot.options.Options;
+import soot.tagkit.LineNumberTag;
+import soot.tagkit.SourceFileTag;
 import soot.util.Chain;
 import typetranslation.Transform;
 import typetranslation.TypeMap;
-
+import util.Pair;
 import monoids.AuthorizationMonoid;
 import monoids.BinaryMonoid;
 import monoids.Monoid;
 import monoids.XssMonoid;
 
 public final class TSA {
-	// TODO: Explain use(fulness) of this class.
-	
-	// Is everything working fine across multiple JUnit tests? 
-	// (I mean, do static fields need to be re-initialized, if yes, is this done?) 
-	
 	public static Monoid mon;
 	
 	public static final String TYPE_ERROR = "type inference error";
@@ -52,9 +59,16 @@ public final class TSA {
 	final static int UNK = -3;
 	final static int STAR = -2;
 	final static int NIL = -1;
-	public final static Region nilRegion = new PosRegion("", NIL);
+	
+	// special region used for static fields and methods
+	public final static Region nilRegion = new PosRegion("", NIL);     
+	// special region returned only by library methods not in the built-in table 
+	// (and not having a mock-up implementation)
+	public final static Region unknownRegion = new PosRegion("", UNK); 
+	// special region used only to make the built-in table an ordinary method table
 	public final static Region starRegion = new PosRegion("", STAR);
-	public final static Region unknownRegion = new PosRegion("", UNK);
+	
+	public static int ctxDepth = 0;
 	
 	
 	// default "properties"
@@ -86,6 +100,57 @@ public final class TSA {
 		return instance;
 	}
 	
+	public static Context getTopContext() {
+		// return DefaultContext.getInstance();
+		return new CallStringContext(ctxDepth);
+	}
+	
+	public static Context contextTransfer(Context ctx, SootMethod m, Stmt stm) {
+		if (ctx instanceof CallStringContext) {
+			return ((CallStringContext)ctx).push(m, stm);
+		}
+		else
+			// throw new RuntimeException("internal error: wrong context");
+			return DefaultContext.getInstance();
+	}
+	
+	public static Region getRegion(Context ctx, SootMethod m, Stmt stm) {
+		return getCtxRegion(m, ctx, stm);
+	}
+	
+	public static PosRegion getCtxRegion(SootMethod m, Context aContext, Stmt stm) {
+		PosRegion r = getPosRegion(m, stm);
+		if (aContext instanceof CallStringContext) {
+			String s = ((CallStringContext)aContext).toString();
+			r.setString(s + r.getString());
+		}
+		return r;
+	}
+	
+	public static PosRegion getPosRegion(SootMethod m, Stmt stm) {
+		int lineNumber = stm.getJavaSourceStartLineNumber();
+		LineNumberTag ntag = (LineNumberTag)stm.getTag("LineNumberTag");
+		if (ntag.getLineNumber() != lineNumber)
+			throw new RuntimeException("internal error, though not a big deal...");
+		SootClass c = m.getDeclaringClass();
+		SourceFileTag ftag = (SourceFileTag)c.getTag("SourceFileTag");
+		if (lineNumber > 1 && ftag != null) {
+			return new PosRegion(c.getJavaPackageName() + "." + ftag.getSourceFile(), lineNumber);
+		} else {
+			if (ftag == null) {
+				Main.mainLog.severe("could not obtain file name. Exiting...");
+				throw new RuntimeException("internal error");
+			}
+			if (lineNumber == -1) {
+				Main.mainLog.severe("could not obtain line number. Exiting...");
+				throw new RuntimeException("internal error");
+			}
+			else {
+				Main.mainLog.severe("the corresponding region is already used. Exiting...");
+				throw new RuntimeException("internal error");
+			}
+		}
+	}
 	
 	public static Set<Monoid> parseSet(String str) {
 		String[] elems = str.substring(1,str.length()-1).split(", ");
@@ -149,7 +214,7 @@ public final class TSA {
 		sootClassPath += libPath + "lib/j2ee.jar:";
 		sootClassPath += libPath + "lib/cos.jar:";
 		sootClassPath += appPath;
-		sootClassPath += pathPrefix + "sootTSA/bin/:"; // TODO: only needed for test case 2) (see Main); update  
+		sootClassPath += pathPrefix + "TSA/bin/:"; // TODO: only needed for test case 2) (see Main); update  
 
 		Options.v().set_soot_classpath(sootClassPath);
 		Options.v().set_prepend_classpath(true);
@@ -199,8 +264,8 @@ public final class TSA {
 		}
 	}
 
-	public int run(String className, String methodName, String monoid, Level logLevel, Boolean toFile) {
-		return run("", className, methodName, monoid, logLevel, toFile, new LinkedList<String>());
+	public int run(String className, String methodName, String monoid, int ctxDepth, Level logLevel, Boolean toFile) {
+		return run("", className, methodName, monoid, ctxDepth, logLevel, toFile, new LinkedList<String>());
 	}
 	
 	private void addImplementingClass(String iName, String cName) {
@@ -218,7 +283,30 @@ public final class TSA {
 			h.close();   //must call h.close or a .lck file will remain.
 	}
 	
-	public int run(String appPath, String className, String methodName, String monoid, Level logLevel, Boolean toFile, List<String> appClasses) {
+	// this method inserts, for each application class, a call to the  
+	// the static initializer <clinit> (if the class has a static initializer)
+	// into each of the methods of that class
+	// NOTE: it is not sufficient to add this code only to the constructors of that class
+	// (see example simples_ones.StaticField2)
+	// NOTE: when adding context-sensitivity, we may need to treat this call in a special way 
+	void inlineStaticInitializers() {
+		for (SootClass c: Scene.v().getApplicationClasses()) {
+			if (c.declaresMethodByName("<clinit>")) {
+				for (SootMethod m: c.getMethods()) {
+					if (!m.getName().equals("<clinit>") && m.hasActiveBody()) {
+						Body b = m.retrieveActiveBody();
+						Chain<Unit> units = b.getUnits();
+						SootMethodRef mRef = Scene.v().makeMethodRef(c, "<clinit>", new LinkedList<Type>(), VoidType.v(), true);
+						InvokeExpr e = Jimple.v().newStaticInvokeExpr(mRef);
+						InvokeStmt u = Jimple.v().newInvokeStmt(e);
+						units.addFirst(u);
+					}
+				}
+			}
+		}
+	}
+	
+	public int run(String appPath, String className, String methodName, String monoid, int kCFA, Level logLevel, Boolean toFile, List<String> appClasses) {
 		
 		Main.setupLogging(logLevel, toFile, className, methodName);
 		
@@ -241,13 +329,16 @@ public final class TSA {
 		else
 			throw new RuntimeException("unknown monoid: " + monoid);
 		
+		// set bound on the call string context
+		ctxDepth = kCFA;
+		
 		info.parseMethodTableFile("tables/" + monoid + ".table");
 
 		Scene.v().loadBasicClasses();
 				
 		// Make all the mockup classes appearing in Scene as application classes
 		// Also output these classes for debugging
-		// NOTE: needs to do this before performing the type translation		
+		// NOTE: this needs to be done before performing the type translation		
 		for (Entry<String, String> entry: TypeMap.nameMap.entrySet()) {
 			String classKey = entry.getKey();
 			String classVal = entry.getValue();
@@ -270,10 +361,14 @@ public final class TSA {
 		// Perform the type translation
 		Transform tf = new Transform();
 		tf.transform();
+		Scene.v().releaseActiveHierarchy();
+		Scene.v().releaseFastHierarchy();
+		
+		inlineStaticInitializers();
 		
 		// Output Jimple representation of the application classes (for debugging)
 		Chain<SootClass> allAppClasses = Scene.v().getApplicationClasses();
-		outputJimpleClasses(allAppClasses);		
+		outputJimpleClasses(allAppClasses);
 		
 		Main.mainLog.config("Application classes: " + allAppClasses + "\n");
 
@@ -314,7 +409,7 @@ public final class TSA {
 		for (SootClass c : classes) {
 			c.checkLevel(SootClass.BODIES);
 			if ((c.isConcrete() || (c.isAbstract() && !c.isInterface()))
-					&& !TypeMap.nameMap.containsValue(c.getName())) 
+					 && !TypeMap.nameMap.containsValue(c.getName())) 
 				outputJimpleClass(c);
 		}
 	}
@@ -347,7 +442,7 @@ public final class TSA {
 				}
 		}
 	}
-
+	
 }
 
 

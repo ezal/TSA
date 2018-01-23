@@ -10,9 +10,10 @@ import java.util.TreeSet;
 import comparators.ListComparator;
 import comparators.RegionComparator;
 import monoids.Monoid;
-
+import ourlib.nonapp.TaintAPI;
 import soot.ArrayType;
 import soot.Body;
+import soot.FastHierarchy;
 import soot.Hierarchy;
 import soot.Immediate;
 import soot.NullType;
@@ -77,6 +78,7 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 	// what we analyze:
 	private final SootMethodRef aMethodRef;
 	private final SootMethod aMethod;
+	private final Context aContext;
 	private final Region aThisRegion;
 	private final List<RefinedType> aArgTypes;
 	private final RefinedType aRetType;
@@ -124,7 +126,8 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		return s;
 	}
 	
-    public IntraProcAnalysis(InterProcAnalysis a, SootMethodRef mRef, UnitGraph g, TypingInfo info, InterProcState state, Region rThis, List<RefinedType> typesOfArgs, TypeAndEffects typeAndEffectss) {
+    public IntraProcAnalysis(InterProcAnalysis a, SootMethodRef mRef, UnitGraph g, TypingInfo info, InterProcState state, 
+    		Context ctx, Region rThis, List<RefinedType> typesOfArgs, TypeAndEffects typeAndEffectss) {
         super(g);
         
         interProcAnalysis = a;
@@ -135,6 +138,7 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
         
         aMethodRef = mRef;
         aMethod = g.getBody().getMethod();
+        aContext = ctx; if (ctx == null) throw new RuntimeException("internal error");
         aThisRegion = rThis; if (rThis == null) throw new RuntimeException("internal error");
         aArgTypes  = typesOfArgs; if (typesOfArgs == null) throw new RuntimeException("internal error");
         aRetType = typeAndEffectss.getType(); if (aRetType == null) throw new RuntimeException("internal error");
@@ -189,15 +193,6 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		}
 		return set;
     }
-    
-//    private Boolean isTainted(AbstractState s, Local v) {
-//    	RefinedType typ = s.getRefType(v);
-//    	if (typ instanceof RefinedObjectType) {
-//    		RefinedObjectType t = (RefinedObjectType)typ;
-//			return (RefinedType.isStringType(t.getType()) && t.getRegions().contains(Main.badRegion));
-//    	}
-//    	return false;
-//    }
 
     // return 'true' if 'e' represents a call of a method of a String-like class
     private Boolean isStringClassCall(InvokeExpr e) {
@@ -213,7 +208,7 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		throw new RuntimeException("internal error");
     }
     
-    TypeAndEffects handleStringMethodInvocation(IntraProcState in, InvokeExpr e) {
+    TypeAndEffects handleStringMethodInvocation(IntraProcState in, InvokeExpr e, Stmt stm) {
     	Main.mainLog.fine("String method invocation");
     	SootMethod m = e.getMethod();
     	
@@ -259,11 +254,14 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 							retRefType = in.getRefType((Local)valArg);
 						else {
 							// String.valueOf(obj) returns obj.toString()
-							Main.mainLog.info("transforming String.valueOf(obj) into obj.toString()");
-							SootClass cArg = ((RefType)valArg.getType()).getSootClass();
-							SootMethodRef newMRef = Scene.v().makeMethodRef(cArg, "toString", new LinkedList<Type>(), VoidType.v(), false);
-							InvokeExpr newExpr = Jimple.v().newVirtualInvokeExpr((Local)valArg, newMRef, new LinkedList<Value>());
-							retRefType = handleMethodInvocation(in, newExpr).getType();
+							
+//							Main.mainLog.info("transforming String.valueOf(obj) into obj.toString()");
+//							SootClass cArg = ((RefType)valArg.getType()).getSootClass();
+//							SootMethodRef newMRef = Scene.v().makeMethodRef(cArg, "toString", new LinkedList<Type>(), VoidType.v(), false);
+//							InvokeExpr newExpr = Jimple.v().newVirtualInvokeExpr((Local)valArg, newMRef, new LinkedList<Value>());
+//							retRefType = handleMethodInvocation(in, newExpr).getType();
+							
+							throw new RuntimeException("TEMP: unhandled case");
 						}
 					}
 					else {
@@ -365,8 +363,8 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 	}	
 	
 
-	public void addMethodTableEntries(SootMethodRef mRef, SootClass c, Region r, List<RefinedType> argTypes, Type retType) {
-		outState.addToMethodTable(mRef, r, argTypes, null);
+	public void addMethodTableEntries(SootMethodRef mRef, SootClass c, Context ctx, Region r, List<RefinedType> argTypes, Type retType) {
+		outState.addToMethodTable(mRef, ctx, r, argTypes, null);
 		List<SootClass> all;
 		Hierarchy h = Scene.v().getActiveHierarchy();
 		if (c.isInterface())						
@@ -384,7 +382,7 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 					SootMethodRef newRef = Scene.v().makeMethodRef(subC, 
 							mRef.name(), mRef.parameterTypes(), mRef.returnType(), mRef.isStatic());
 
-					outState.addToMethodTable(newRef, r, argTypes, null);
+					outState.addToMethodTable(newRef, ctx, r, argTypes, null);
 				}
 				else 
 					Main.mainLog.finer("typePool does not contain " + ot);
@@ -394,8 +392,8 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		}
 	}
 	
-	TypeAndEffects handleMethodInvocation(IntraProcState in, InvokeExpr e) {		
-		SootMethodRef m  = e.getMethodRef();
+	TypeAndEffects handleMethodInvocation(IntraProcState in, InvokeExpr e, Stmt stm) {
+		SootMethodRef m = e.getMethodRef();
 		
 		Type retType = m.returnType();
 		RefinedType objRefType = getRefinedTypeOfThis(in, e, retType);		
@@ -443,16 +441,17 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 			Main.mainLog.finer("Looking for entry: m = " + mRef + " r = " + r + " argTypes = "  + argTypes);
 			
 			TypeAndEffects typeAndEffects = null;
-			if (inState.mTable.containsKey(mRef, r, argTypes)) {
-				typeAndEffects = inState.mTable.get(mRef, r, argTypes);
+			Context newCtx = TSA.contextTransfer(aContext, aMethod, stm);
+			if (inState.mTable.containsKey(mRef, newCtx, r, argTypes)) {
+				typeAndEffects = inState.mTable.get(mRef, newCtx, r, argTypes);
 				Main.mainLog.finer("entry found: " + typeAndEffects);
 			}
 			else {
 				Main.mainLog.finer("entry not found in inState.mTable");
 				// also add entries for all subclasses that declare this method
-				addMethodTableEntries(mRef, cM, r, argTypes, retType);
+				addMethodTableEntries(mRef, cM, newCtx, r, argTypes, retType);
 				// just add an entry in the outState.mTable, so we get it from there
-				typeAndEffects = outState.mTable.get(mRef, r, argTypes);
+				typeAndEffects = outState.mTable.get(mRef, newCtx, r, argTypes);
 				if (typeAndEffects == null) {
 					throw new RuntimeException("internal error: entry not found and not added");
 					// typeAndEffects = TypeAndEffects.initTypeAndEffects(retType, cls.isLibraryClass());
@@ -478,31 +477,18 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		}
     }    
 	
-	PosRegion getPosRegion(Stmt stm) {
-		int lineNumber = stm.getJavaSourceStartLineNumber();
-		LineNumberTag ntag = (LineNumberTag)stm.getTag("LineNumberTag");
-		if (ntag.getLineNumber() != lineNumber)
-			throw new RuntimeException("internal error, though not a big deal...");
-		SootClass c = aMethod.getDeclaringClass();
-		SourceFileTag ftag = (SourceFileTag)c.getTag("SourceFileTag");
-		if (lineNumber > 1 && ftag != null) {
-			return new PosRegion(c.getJavaPackageName() + ftag.getName(), lineNumber);
-		} else {
-			if (ftag == null) {
-				Main.mainLog.severe("could not obtain file name. Exiting...");
-				throw new RuntimeException("internal error");
-			}
-			if (lineNumber == -1) {
-				Main.mainLog.severe("could not obtain line number. Exiting...");
-				throw new RuntimeException("internal error");
-			}
-			else {
-				Main.mainLog.severe("the corresponding region is already used. Exiting...");
-				throw new RuntimeException("internal error");
-			}
-			
-			
-		}
+    private boolean comparable(SootClass c1, SootClass c2) {
+    	if (c1.getName().equals("java.lang.Object") || (c2.getName().equals("java.lang.Object")))
+    		return true;
+    	
+    	FastHierarchy h = Scene.v().getOrMakeFastHierarchy();
+    	if (c1.isInterface())
+    		if (h.getAllImplementersOfInterface(c1).contains(c2))
+    			return true;
+    	if (c2.isInterface())
+    		return h.getAllImplementersOfInterface(c2).contains(c1);
+    	else
+    		return h.isSubclass(c1, c2) || h.isSubclass(c2, c1);
 	}
     
     // Computes the refined type of the value v, together with its effect.
@@ -535,177 +521,200 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		}
    	
 		else if (v instanceof Expr) 
-		{
-			if (v instanceof InvokeExpr) {
-				InvokeExpr e = (InvokeExpr)v;
-				if (isStringClassCall(e))
-					return handleStringMethodInvocation(in, e);
-				else
-					return handleMethodInvocation(in, e);
-			} // end of  if (v instanceof InvokeExpr)
-			
-			else if (v instanceof AnyNewExpr) {
-				if (hasStringType(v)) {
-					refType = new RefinedStringType();
-				}
-				else {
-					Region r = getPosRegion(stm);
-					Type vrt = ((AnyNewExpr)v).getType();
-					if (vrt instanceof RefType) {
-						refType =  new RefinedObjectType((RefType)vrt, r);
-						outState.addToTypePool((RefinedObjectType)refType);
-					}
-					else if (vrt instanceof ArrayType) {
-						Type ut = ((ArrayType)vrt).getElementType();
-						if (ut instanceof RefType) {
-							if (RefinedType.isStringType(ut))
-								refType = new RefinedArrayType(new RefinedStringType());
-							else
-								refType = new RefinedArrayType(new RefinedObjectType((RefType)ut, r));
-						}
-						else
-							refType = new RefinedNonRefType(ut);
-					}
-					else {
-						Main.mainLog.severe("AnyNewExpr: " + v + " is of type " + vrt);
-						throw new RuntimeException("unhandled case");
-					}
-				}
+			return getTypeExpr(in, v, stm);
+
+		else if (v instanceof Ref) 
+			refType = getTypeRef(in, v, stm);
+
+    	// There should be no other case, that is, rv instance of Immediate | Ref | Expr
+		else throw new RuntimeException("unhandled case");
+		
+    	return new TypeAndEffects(refType, new Effects(false));
+    }
+
+	private RefinedType getTypeRef(IntraProcState in, Value v, Stmt stm) {
+		RefinedType refType = null;
+		// two subcases: IdentityRef and ConcreteRef
+		Main.mainLog.finer(v + " is instance of Ref: " + v.getClass());
+
+		// three subcases for IdentityRef: ThisRef, ParameterRef, and CaughtExceptionRef 
+		if (v instanceof ThisRef) {
+			// example: r0 := @this: securibench.micro.basic.Basic30;
+			Type vt = ((ThisRef)v).getType();
+			refType = new RefinedObjectType(((RefType)vt), aThisRegion);
+		}
+		else if (v instanceof ParameterRef) {
+			// example: @parameter0: javax.servlet.http.HttpServletRequest
+			refType = aArgTypes.get(((ParameterRef)v).getIndex());
+		}
+		else if (v instanceof CaughtExceptionRef) {
+			// NOTE: we treat such expressions as new expressions
+			// TODO: probably not the right way to deal with exceptions...
+			CaughtExceptionRef expt = (CaughtExceptionRef)v;
+			Region r = TSA.getRegion(aContext, aMethod, stm);
+			RefType vrt = (RefType) expt.getType();
+			refType = new RefinedObjectType(vrt, r);
+		}
+
+		// two subcases for ConcreteRef: FieldRef and ArrayRef
+		// two subcases for FieldRef: InstanceFieldRef and StaticFieldRef 
+		else if (v instanceof InstanceFieldRef) {
+			// example: r4.<securibench.micro.basic.Basic30$Data: java.lang.String value1>
+			Local obj = (Local) ((InstanceFieldRef)v).getBase();
+			RefType c = (RefType) obj.getType();
+			// TODO: why not use getDeclaringClass() ?
+			RefinedObjectType objRefType = (RefinedObjectType) in.getRefType(obj);
+			SootField f = ((InstanceFieldRef)v).getField(); // TODO: update field table definition: use SootFieldRef instead of SootField?
+			Set<RefinedType> set = getAllFieldRefinedTypes(c, objRefType, f);
+			if (set.isEmpty())
+				refType = RefinedType.initRefinedType(v.getType(), null);
+			else
+				refType = RefinedType.join(set);
+		}
+		else if (v instanceof StaticFieldRef) {
+			SootField f = ((StaticFieldRef)v).getField();    			
+			RefType c = f.getDeclaringClass().getType();
+			RefinedType res = inState.fTable.get(c, TSA.nilRegion, f);
+			if (res == null) {
+				// NOTE: Entry not found in field table
+				refType = RefinedType.initRefinedType(f.getType(), TSA.unknownRegion);
 			}
+			else
+				refType = res;
+		}
+		
+		// last subcase
+		else if (v instanceof ArrayRef) {
+			// We use the refined type of the "base" value
+			ArrayRef a = (ArrayRef)v;
+			Value b = a.getBase();
+			RefinedArrayType rt = (RefinedArrayType) in.getRefType((Local)b);
+			if (rt == null)
+				Main.mainLog.severe("local variable " + b + " not found in table");
+			refType = rt.getRefinedType();
+		}
+		
+		// We should have treated all cases...
+		else throw new RuntimeException("unhandled case");
 
-			else if (v instanceof CastExpr) {
-				RefType castTo = null;
-				if (v.getType() instanceof RefType)
-					castTo = (RefType) v.getType();
-				else if (v.getType() instanceof ArrayType)
-					throw new RuntimeException("not yet handled"); 
-				Value initVal = ((CastExpr)v).getOp();
-				if (initVal instanceof Local) {
-					RefinedType oldType = in.getRefType((Local)initVal);
-					if (oldType instanceof RefinedObjectType) {
-						Set<Region> regions = ((RefinedObjectType)oldType).getRegions();
-						if (RefinedType.isStringType(castTo)) {
-							// throw new RuntimeException("unhandled case (cast)");
-							// we use the same regions as in the old type...
-							Set<Region> sameRegions = ((RefinedObjectType) oldType).getRegions();
-							// We convert Set<Region> to Set<MonoidElement>
-							// TODO: How can this be done more efficiently?
-							Set<Monoid> sameElements = new TreeSet<Monoid>();
-							for(Region r: sameRegions) {
-								if (r instanceof Monoid)
-									sameElements.add((Monoid)r);
-								else if (r.equals(TSA.nilRegion) || r.equals(TSA.unknownRegion))
-									sameElements.add(TSA.mon.neutralElement());
-								else
-									throw new RuntimeException("internal error");
-							}
-							refType = new RefinedStringType(sameElements);
+		return refType;
+	}
 
-						}
+	private TypeAndEffects getTypeExpr(IntraProcState in, Value v, Stmt stm) {
+		RefinedType refType = null;
+		if (v instanceof InvokeExpr) {
+			InvokeExpr e = (InvokeExpr)v;
+			if (isStringClassCall(e))
+				return handleStringMethodInvocation(in, e, stm);
+			else
+				return handleMethodInvocation(in, e, stm);
+		}
+		
+		else if (v instanceof AnyNewExpr) {
+			if (hasStringType(v)) {
+				refType = new RefinedStringType();
+			}
+			else {
+				Region r = TSA.getRegion(aContext, aMethod, stm);
+				Type vrt = ((AnyNewExpr)v).getType();
+				if (vrt instanceof RefType) {
+					refType =  new RefinedObjectType((RefType)vrt, r);
+					outState.addToTypePool((RefinedObjectType)refType);
+				}
+				else if (vrt instanceof ArrayType) {
+					Type ut = ((ArrayType)vrt).getElementType();
+					if (ut instanceof RefType) {
+						if (RefinedType.isStringType(ut))
+							refType = new RefinedArrayType(new RefinedStringType());
 						else
-							refType = new RefinedObjectType(castTo, regions);
+							refType = new RefinedArrayType(new RefinedObjectType((RefType)ut, r));
 					}
-					else if(oldType instanceof RefinedStringType) {
-						if (RefinedType.isStringType(castTo)) {
-							refType = oldType;
-						}
-						else
-							throw new RuntimeException("unhandled case");
-					}
-					else 
-						throw new RuntimeException("internal error");
+					else
+						refType = new RefinedNonRefType(ut);
 				}
 				else {
-					Main.mainLog.severe("unhandled case (cast of a non-local): " + initVal);
+					Main.mainLog.severe("AnyNewExpr: " + v + " is of type " + vrt);
 					throw new RuntimeException("unhandled case");
 				}
 			}
-			else if (v instanceof LengthExpr) {
-				return null; // NOTE: left hand side must be a integer (ie primitive type); so it's safe to ignore
-			}
-			else {
-				Main.mainLog.severe("unhandled expression type: " + v.getClass());
-				throw new RuntimeException("unhandled case");
-			}
-		} 
-    	
-		else if (v instanceof Ref) {
-			// two subcases: IdentityRef and ConcreteRef
-			Main.mainLog.finer(v + " is instance of Ref: " + v.getClass());
-			// if (v instanceof IdentityRef) {
-			  // three subcases: ThisRef, ParameterRef, and CaughtExceptionRef 
-			if (v instanceof ThisRef) {
-				// example: r0 := @this: securibench.micro.basic.Basic30;
-				Type vt = ((ThisRef)v).getType();
-				refType = new RefinedObjectType(((RefType)vt), aThisRegion);
-    		}
-    		else if (v instanceof ParameterRef) {
-    			// example: @parameter0: javax.servlet.http.HttpServletRequest
-				refType = aArgTypes.get(((ParameterRef)v).getIndex());
-    		}
-    		else if (v instanceof CaughtExceptionRef) {
-    			// NOTE: we treat such expressions as new expressions
-    			// TODO: probably not the right way to deal with exceptions...
-    			CaughtExceptionRef expt = (CaughtExceptionRef)v;
-    			Region r = getPosRegion(stm);
-    			RefType vrt = (RefType) expt.getType();
-    			refType = new RefinedObjectType(vrt, r);
-    		}
-			// if (v instanceof ConcreteRef) 
-			   // two subcases: FieldRef and ArrayRef
-    		// if (v instanceof FieldRef) { 
-			   // two subcases: InstanceFieldRef and StaticFieldRef 
-    		else if (v instanceof InstanceFieldRef) {
-    			// example: r4.<securibench.micro.basic.Basic30$Data: java.lang.String value1>
-    			Local obj = (Local) ((InstanceFieldRef)v).getBase();
-    			RefType c = (RefType) obj.getType();
-    			// TODO: why not use getDeclaringClass() ?
-    			RefinedObjectType objRefType = (RefinedObjectType) in.getRefType(obj);
-    			SootField f = ((InstanceFieldRef)v).getField(); // TODO: update field table definition: use SootFieldRef instead of SootField?
-    	    	Set<RefinedType> set = getAllFieldRefinedTypes(c, objRefType, f);
-    	    	if (set.isEmpty())
-    	    		refType = RefinedType.initRefinedType(v.getType(), null);
-    	    	else
-    	    		refType = RefinedType.join(set);
-    		}
-    		else if (v instanceof StaticFieldRef) {
-    			SootField f = ((StaticFieldRef)v).getField();    			
-    			RefType c = f.getDeclaringClass().getType();
-    			RefinedType res = inState.fTable.get(c, TSA.nilRegion, f);
-    			if (res == null) {
-    				// TODO: see message
-    				Main.mainLog.info("Entry not found in field table! Should we introduce it?");
-    				refType = RefinedType.initRefinedType(f.getType(), null);
-    			}
-    			else
-    				refType = res;
-    		}
-    		else if (v instanceof ArrayRef) {
-    			// We use the refined type of the "base" value
-    			ArrayRef a = (ArrayRef)v;
-    			Value b = a.getBase();
-    			RefinedArrayType rt = (RefinedArrayType) in.getRefType((Local)b);
-    			if (rt == null)
-    				Main.mainLog.severe("local variable " + b + " not found in table");
-    			refType = rt.getRefinedType();
-    		}
-    		else {
-    			// We should have treated all cases; still, we double-check...
-    			Main.mainLog.warning("rvalue is another instance of Ref; not yet handled: " + v.getClass() + " (type = " + v.getType() + ")");
-    			throw new RuntimeException("unhandled case");
-    		}
-		} // end of  if (rv instance of Ref)
-		else { 
-			// There should be no other case, that is, (rv instance of Immediate | Ref | Expr).
-			Main.mainLog.severe("unknown case for rvalue: " + v.getClass());
-			throw new RuntimeException("unhandled case");
-		} // end of  if (rv instance of Immediate | Ref | Expr | _)
-    	
-    	
-    	return new TypeAndEffects(refType, new Effects(false));
-    }    
+		}
 
-    @Override
+		else if (v instanceof CastExpr)
+			refType = getTypeCastExpr(in, v);
+		else if (v instanceof LengthExpr) {
+			return null; // NOTE: left hand side must be an integer (ie primitive type); so it's safe to ignore
+		}
+		else {
+			Main.mainLog.severe("unhandled expression type: " + v.getClass());
+			throw new RuntimeException("unhandled case");
+		}
+		return new TypeAndEffects(refType, new Effects(false));
+	}
+
+	private RefinedType getTypeCastExpr(IntraProcState in, Value v) {
+		RefinedType refType = null;
+		RefType castTo = null;
+		if (v.getType() instanceof RefType)
+			castTo = (RefType) v.getType();
+		else if (v.getType() instanceof ArrayType)
+			throw new RuntimeException("not yet handled");
+		SootClass castClass = castTo.getSootClass();
+		Value initVal = ((CastExpr)v).getOp();
+		if (initVal instanceof Local) {
+			RefinedType oldType = in.getRefType((Local)initVal);
+			if (oldType instanceof RefinedObjectType) {						
+				SootClass oldClass = ((RefinedObjectType)oldType).getType().getSootClass();
+				if (comparable(oldClass, castClass)) {
+					Set<Region> regions = ((RefinedObjectType)oldType).getRegions();
+					if (!RefinedType.isStringType(castTo))
+						refType = new RefinedObjectType(castTo, regions);
+					else
+					{
+						// all regions should be monoid elements...
+						Set<Monoid> sameElements = new TreeSet<Monoid>();
+						for(Region r: ((RefinedObjectType) oldType).getRegions()) {
+							if (r instanceof Monoid)
+								sameElements.add((Monoid)r);
+							// else
+							// the old class can only be Object for this to make sense
+							// otherwise there is probably a runtime error and "all bets are off"
+						}
+						if (sameElements.isEmpty())
+							sameElements.add(TSA.mon.neutralElement());
+						refType = new RefinedStringType(sameElements);
+					}
+				}
+				else  {
+					Main.mainLog.finer("CAST ERROR: incomparable types " + castClass + " and " + oldClass);
+					// In this case the cast cannot be performed; use empty set of regions
+					if (!RefinedType.isStringType(castTo))
+						refType = new RefinedObjectType(castTo);
+					else
+						refType = new RefinedStringType();
+				}
+			}
+			else // oldType not a RefinedObjectType
+				if (oldType instanceof RefinedStringType) {
+					if (RefinedType.isStringType(castTo)) 
+						refType = oldType;
+					else if (castClass.getName().equals("java.lang.Object")) {
+						Set<Region> sameElements = new TreeSet<Region>();
+						for(Monoid el: ((RefinedStringType)oldType).getAnnot())
+							sameElements.add(el);
+						refType = new RefinedObjectType(castTo, sameElements);
+					}
+					else 
+						refType = new RefinedObjectType(castTo);
+				}
+		}
+		else {
+			Main.mainLog.severe("unhandled case (cast of a non-local): " + initVal);
+			throw new RuntimeException("unhandled case");
+		}
+		return refType;
+	}
+	
+	@Override
 	protected void flowThrough(IntraProcState in, Unit d, IntraProcState out) {
     	Main.mainLog.fine("analyzing unit: " + d.toString());
     	Main.mainLog.fine("in: " + in.toString());
@@ -719,148 +728,15 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
         Stmt stm = (Stmt)d;
         
         if (stm instanceof DefinitionStmt) {
-        	Value lv = ((DefinitionStmt)stm).getLeftOp();
-        	Value rv = ((DefinitionStmt)stm).getRightOp();
-
-        	TypeAndEffects typeAndEffects = getTypeAndEffect(in, rv, stm);
-        	
-        	Main.mainLog.finer("lv := rv => getTypeAndEffect(rv) = " + typeAndEffects);
-
-        	if (typeAndEffects == null) {
-        		if (!(rv instanceof NullConstant) && !(rv instanceof LengthExpr))
-        			throw new RuntimeException("getRefinedType(" + rv + ") = null");
-        		// else we do nothing: note that we already copied in to out
-        	}
-        	else {
-        		out.effects = out.effects.concat(typeAndEffects.effects);
-        		
-        		if (lv.getType() instanceof PrimType) {
-        			Main.mainLog.fine("ignoring statement, as lv's type is a primitive type");        		
-        		}
-        		else {
-        			RefinedType rvType = typeAndEffects.getType();
-        			if (rvType == null) {
-        				if (!(rv instanceof NullConstant))
-        					throw new RuntimeException("RefinedType(" + rv + ") = null");
-        				//  else we do nothing: note that we already copied in to out
-        			}
-        			else if (lv instanceof Local)
-        				out.overrideRefType((Local)lv, rvType);
-        			else if (lv instanceof FieldRef) {
-        				FieldRef fRef = ((FieldRef)lv);
-        				SootField f = fRef.getField();
-        				RefType c = f.getDeclaringClass().getType();
-
-        				if (lv instanceof InstanceFieldRef) { // case o.f = rv
-        					Local obj = (Local) ((InstanceFieldRef)fRef).getBase();
-        					RefinedObjectType objType = (RefinedObjectType) in.getRefType(obj);
-        					RefType objt = (RefType) obj.getType();
-        					for (Region r: objType.getRegions())        						
-        						outState.updateFTable(objt, r, f, rvType);
-        				}
-        				else { // case C.f = rv
-        					if (!(lv instanceof StaticFieldRef))
-        						throw new RuntimeException("internal error " + lv);
-        					RefinedType fType = inState.fTable.get(c, TSA.nilRegion, fRef.getField());
-        					if (fType == null || fType.subType(rvType)) {
-        						outState.updateFTable(c, TSA.nilRegion, f, rvType);
-        					}
-        				}
-        			}
-        			else if (lv instanceof ArrayRef) {
-        				Value base = ((ArrayRef)lv).getBase();
-        				out.augmentRefType((Local)base, new RefinedArrayType(rvType));
-        			}
-        			else {
-        				// There should be no other case:
-        				// From Revi's master thesis, we can have:
-        				// * local = rvalue                 --- already handled
-        				// * field = immediate              --- already handled
-        				// * local.field = immediate        --- already handled
-        				// * local[immediate] = immediate   --- already considered, not handled
-        				Main.mainLog.severe("unhandled case: left value of AssignStmt: " + stm + " is " + lv);
-        				throw new RuntimeException("unhandled case");
-        			}
-        		}
-        	}
+        	flowThroughDefinition(in, out, (DefinitionStmt)stm);
         }        
         else if (stm instanceof InvokeStmt) {
-        	InvokeExpr e = stm.getInvokeExpr();
-        	if (!isStringClassCall(e)) {
-        		TypeAndEffects typeAndEffects = handleMethodInvocation(in, e);
-        		if (typeAndEffects != null) 
-            		out.effects = out.effects.concat(typeAndEffects.effects);
-        	}
-        	else {
-        		SootMethodRef m = e.getMethodRef();
-        		if (m.name().equals("<init>") && e.getArgs().size() > 0) {
-        			Type typ = m.parameterType(0);
-        			if (typ instanceof RefType) {
-        				RefType t = (RefType) typ;
-        				if (t.getClassName().equals("java.lang.String")) {
-        					Local valThis = (Local) ((InstanceInvokeExpr)e).getBase();
-            				Value arg = e.getArgs().get(0);
-            				if (arg instanceof Local)
-            					out.augmentRefType(valThis, in.getRefType((Local)arg));
-        				}
-        				else {
-        					Main.mainLog.severe("unhandled case: String.<init>(" + t.getClassName() + ")");
-            				throw new RuntimeException("unhandled case");
-        				}
-        			}
-        		}
-        	}
+        	flowThroughInvoke(in, out, (InvokeStmt)stm);
         }
-        else if (stm instanceof ReturnStmt) {
-        	Effects mEffects = in.getEffects();
-        	Effects newEffects = aEffects.union(mEffects);
-        	// TODO: need to update out.Effects?
-        	// RefinedType mRetType = in.getRefType(?);  
-        	Value v = ((ReturnStmt)stm).getOp();
-        	if (v instanceof Local) {
-        		RefinedType vType = in.getRefType((Local)v);
-        		if (!(v.getType() instanceof PrimType)) {
-        			if (!vType.subType(aRetType) || !newEffects.equals(aEffects)) {
-        				Main.mainLog.finer(vType + " NOT subtype of " + aRetType + ": update to the join of the two: " + aRetType.join(vType));
-        				outState.addToMethodTable(aMethodRef, aThisRegion, aArgTypes, new TypeAndEffects(aRetType.join(vType), newEffects));
-        			}
-        			else {
-        				Main.mainLog.finer(vType + " subtype of " + aRetType + ": all ok, no update needed.");
-        			}
-        		}
-        	}
-        	else if (v instanceof Constant) {        		
-//        		if (!(v instanceof NullConstant) && !(v.getType() instanceof PrimType)) {
-//        			Main.mainLog.finer(v + " is a non-null constant of a non-primitive type, namely " + v.getType());
-//        			throw new RuntimeException("unhandled case");
-//        		}
-        		if (!newEffects.equals(aEffects)) {
-        			if (!(aRetType instanceof RefinedNonRefType))
-        				throw new RuntimeException("internal error"); 
-        			TypeAndEffects newte = new TypeAndEffects(aRetType, newEffects);
-        			outState.addToMethodTable(aMethodRef, aThisRegion, aArgTypes, newte);
-            	}
-        	}
-        	else {
-        		throw new RuntimeException("unhandled case in ReturnStmt: " + v);
-        	}
-        	// nothing to be done!
+        else if (stm instanceof ReturnStmt || stm instanceof ReturnVoidStmt || stm instanceof RetStmt) {
+    		// NOTE: no need to update out.effects; its not used anymore
+        	flowThroughReturn(in, stm);
 		} 
-        else if (stm instanceof ReturnVoidStmt) {
-        	if (!aRetType.getType().equals(VoidType.v()))
-        		throw new RuntimeException("[flowThrough] internal error: ReturnVoidStmt and retType != void");
-        	
-        	Effects mEffects = in.getEffects();
-        	Effects newEffects = aEffects.union(mEffects);
-        	if (!newEffects.equals(aEffects)) {
-        		TypeAndEffects newte = new TypeAndEffects(new RefinedNonRefType(VoidType.v()), newEffects);
-        		outState.addToMethodTable(aMethodRef, aThisRegion, aArgTypes, newte);
-        	}        	
-        }
-        else if (stm instanceof RetStmt) {
-			// TODO: What is the difference between RetStmt and ReturnStmt?
-			throw new RuntimeException("[flowThrough] RetStmt not handled");
-        } 
         else if (stm instanceof GotoStmt) {
         	// nothing to be done!
         } else if (stm instanceof NopStmt) {
@@ -870,7 +746,7 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
         } else if (stm instanceof SwitchStmt) {
         	// nothing to be done!
         } else if (stm instanceof ThrowStmt) {
-        	// nothing to be done!
+        	// nothing to be done?
         } else {
         	Main.mainLog.severe("unhandled statement: " + stm.toString());
         	Main.mainLog.severe("statement's type is: " + stm.getClass().getName() + " (or " + stm.getClass().getName() + ")");
@@ -880,11 +756,142 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
         Main.mainLog.fine("out: " + out + "\n");
     }
 
+	private void flowThroughDefinition(IntraProcState in, IntraProcState out, DefinitionStmt stm) {
+		Value lv = stm.getLeftOp();
+		Value rv = stm.getRightOp();
+
+		TypeAndEffects typeAndEffects = getTypeAndEffect(in, rv, stm);
+		
+		Main.mainLog.finer("lv := rv => getTypeAndEffect(rv) = " + typeAndEffects);
+
+		if (typeAndEffects == null) {
+			if (!(rv instanceof NullConstant) && !(rv instanceof LengthExpr) && !(rv instanceof CastExpr))
+				throw new RuntimeException("getRefinedType(" + rv + ") = null");
+			// else we do nothing: note that we already copied in to out
+		}
+		else {
+			out.effects = out.effects.concat(typeAndEffects.effects);
+			
+			if (lv.getType() instanceof PrimType) {
+				Main.mainLog.fine("ignoring statement, as lv's type is a primitive type");        		
+			}
+			else {
+				RefinedType rvType = typeAndEffects.getType();
+				if (rvType == null) {
+					if (!(rv instanceof NullConstant))
+						throw new RuntimeException("RefinedType(" + rv + ") = null");
+					//  else we do nothing: note that we already copied in to out
+				}
+				else if (lv instanceof Local)
+					out.overrideRefType((Local)lv, rvType);
+				else if (lv instanceof FieldRef) {
+					FieldRef fRef = ((FieldRef)lv);
+					SootField f = fRef.getField();
+					RefType c = f.getDeclaringClass().getType();
+
+					if (lv instanceof InstanceFieldRef) { // case o.f = rv
+						Local obj = (Local) ((InstanceFieldRef)fRef).getBase();
+						RefinedObjectType objType = (RefinedObjectType) in.getRefType(obj);
+						RefType objt = (RefType) obj.getType();
+						for (Region r: objType.getRegions())        						
+							outState.updateFTable(objt, r, f, rvType);
+					}
+					else { // case C.f = rv
+						if (!(lv instanceof StaticFieldRef))
+							throw new RuntimeException("internal error " + lv);
+						RefinedType fType = inState.fTable.get(c, TSA.nilRegion, fRef.getField());
+						if (fType == null || fType.subType(rvType)) {
+							outState.updateFTable(c, TSA.nilRegion, f, rvType);
+						}
+					}
+				}
+				else if (lv instanceof ArrayRef) {
+					Value base = ((ArrayRef)lv).getBase();
+					out.augmentRefType((Local)base, new RefinedArrayType(rvType));
+				}
+				else {
+					// There should be no other case:
+					// From Revi's master thesis, we can have:
+					// * local = rvalue                 --- already handled
+					// * field = immediate              --- already handled
+					// * local.field = immediate        --- already handled
+					// * local[immediate] = immediate   --- already considered, not handled
+					Main.mainLog.severe("unhandled case: left value of AssignStmt: " + stm + " is " + lv);
+					throw new RuntimeException("unhandled case");
+				}
+			}
+		}
+	}
+
+	private void flowThroughInvoke(IntraProcState in, IntraProcState out, InvokeStmt stm) {
+		InvokeExpr e = stm.getInvokeExpr();
+		if (!isStringClassCall(e)) {
+			TypeAndEffects typeAndEffects = handleMethodInvocation(in, e, stm);
+			if (typeAndEffects != null) 
+				out.effects = out.effects.concat(typeAndEffects.effects);
+		}
+		else {
+			SootMethodRef m = e.getMethodRef();
+			if (m.name().equals("<init>") && e.getArgs().size() > 0) {
+				Type typ = m.parameterType(0);
+				if (typ instanceof RefType) {
+					RefType t = (RefType) typ;
+					if (t.getClassName().equals("java.lang.String")) {
+						Local valThis = (Local) ((InstanceInvokeExpr)e).getBase();
+						Value arg = e.getArgs().get(0);
+						if (arg instanceof Local)
+							out.augmentRefType(valThis, in.getRefType((Local)arg));
+					}
+					else {
+						Main.mainLog.severe("unhandled case: String.<init>(" + t.getClassName() + ")");
+						throw new RuntimeException("unhandled case");
+					}
+				}
+			}
+		}
+	}
+	
+	private void flowThroughReturn(IntraProcState in, Stmt stm) {
+		if (stm instanceof ReturnStmt) {
+			Effects newEffects = aEffects.union(in.effects);
+
+			Value v = ((ReturnStmt)stm).getOp();
+			RefinedType newType = aRetType;
+			if (v instanceof Local) {
+				RefinedType vType = in.getRefType((Local)v);
+				if (!vType.subType(aRetType))
+					newType = aRetType.join(vType);
+			}
+			
+			if (newType != aRetType || !newEffects.equals(aEffects)) {
+				Main.mainLog.finer("done analyzing method table entry: entry needs updating");
+				TypeAndEffects newte = new TypeAndEffects(newType, newEffects);
+				outState.addToMethodTable(aMethodRef, aContext, aThisRegion, aArgTypes, newte);
+			}
+			else
+				Main.mainLog.finer("done analyzing method table entry: no update");
+		} 
+        else if (stm instanceof ReturnVoidStmt) {
+        	if (!aRetType.getType().equals(VoidType.v()))
+        		throw new RuntimeException("[flowThrough] internal error: ReturnVoidStmt and retType != void");
+        	
+        	Effects newEffects = aEffects.union(in.effects);
+        	if (!newEffects.equals(aEffects)) {
+        		TypeAndEffects newte = new TypeAndEffects(new RefinedNonRefType(VoidType.v()), newEffects);
+        		outState.addToMethodTable(aMethodRef, aContext, aThisRegion, aArgTypes, newte);
+        	}
+        }
+        else if (stm instanceof RetStmt) {
+			// What is the difference between RetStmt and ReturnStmt??
+			throw new RuntimeException("[flowThrough] RetStmt not handled");
+        }
+        else
+        	throw new RuntimeException("[flowThrough] unknown statement");
+	}
+
+
 	@Override
 	protected void merge(IntraProcState in1, IntraProcState in2, IntraProcState out) {
-//		Main.mainLog.finer("merging in1 = " + in1); 
-//		Main.mainLog.finer("   with in2 = " + in2);
-//		Main.mainLog.finer("        out = " + out);
 		// NOTE: 'out' seems to be built with newInitialFlow or entryInitialFlow
 		
 		Map<Local, RefinedType> in1Types = in1.getRefTypes();
@@ -907,21 +914,15 @@ public class IntraProcAnalysis extends ForwardFlowAnalysis<Unit, IntraProcState>
 		}
 		
 		out.effects = out.effects.union(in1.effects).union(in2.effects);
-		
-		// Main.mainLog.finer(" the result = " + out + "\n");
 	}
 
 	@Override
 	protected void copy(IntraProcState from, IntraProcState to) {
-//		Main.mainLog.finer("copying from = " + from); 
-//		Main.mainLog.finer("       to to = " + to);
 		// NOTE: 'to' seems to be built with "new AbstractState" 
 		//       and not with newInitialFlow or entryInitialFlow
 		
 		to.getRefTypes().putAll(from.getRefTypes());
 		to.effects.getSet().addAll(from.effects.getSet());
-		
-//		Main.mainLog.finer(" the result = " + to + "\n");
 	}
 
 	@Override

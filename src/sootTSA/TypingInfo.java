@@ -19,7 +19,6 @@ import soot.SootClass;
 import soot.SootMethod;
 import soot.SootMethodRef;
 import soot.Type;
-import soot.VoidType;
 
 
 public class TypingInfo {
@@ -61,7 +60,7 @@ public class TypingInfo {
 //		for(int i = 0; i < cols.length; i++)
 //			System.out.println("we have read: --" + cols[i] + "--");
 		
-		if (cols.length != 6) {
+		if (cols.length != 5) {
 			Main.mainLog.severe("couldn't parse method table entry; wrong number of columns: " + cols.length);
 			throw new RuntimeException("parse error");
 		}
@@ -76,13 +75,7 @@ public class TypingInfo {
 		
 		SootClass c = Scene.v().getSootClass(cols[0]);
 		
-		Region r;
-		if (cols[2].equals("*"))
-			r = TSA.starRegion;
-		else
-			throw new RuntimeException("internal error");
-		
-		List<RefinedType> argsTypes = parseRefinedTypeList(cols[3]);
+		List<RefinedType> argsTypes = parseRefinedTypeList(cols[2]);
 		// in the method table, we require that non-string arguments have exactly one region 
 		for (RefinedType e: argsTypes) {
 			if (e instanceof RefinedObjectType && ((RefinedObjectType)e).getRegions().size() != 1) {
@@ -91,7 +84,7 @@ public class TypingInfo {
 			}
 		}
 		
-		RefinedType retType = parseRefinedType(cols[4]);
+		RefinedType retType = parseRefinedType(cols[3]);
 
 		// We build the signature of the method
 		// NOTE: in case of overloaded methods, we might need to explicitly specify the signature, 
@@ -104,10 +97,10 @@ public class TypingInfo {
 		// NOTE: we assume it's not a static method
 		SootMethodRef m = Scene.v().makeMethodRef(c, cols[1], aList, rType, false);
 		
-		Effects effects = new Effects(TSA.parseSet(cols[5]));
+		Effects effects = new Effects(TSA.parseSet(cols[4]));
 
 		// Main.mainLog.fine("adding entry " + m + " " + r + " " + l + " " + retType);
-		mTable.put(m, r, argsTypes, new TypeAndEffects(retType, effects));
+		mTable.put(m, DefaultContext.getInstance(), TSA.starRegion, argsTypes, new TypeAndEffects(retType, effects));
 	}
 
 	List<RefinedType> parseRefinedTypeList(String str) {
@@ -120,8 +113,6 @@ public class TypingInfo {
 		return l;
 	}
 	
-	// TODO: add option Boolean singleton and if true then do read a single element not a set; 
-	// that is, no need to add the brackets in this case
 	RefinedType parseRefinedType(String str) {
 		RefinedType refType;
 

@@ -4,7 +4,7 @@ import ourlib.nonapp.TaintAPI;
 
 
 
-class ListNode {
+public class ListNode {
 	String x;
 	ListNode next;
 	

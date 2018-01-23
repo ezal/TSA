@@ -1,4 +1,4 @@
-package tests.securibenchmicro;
+package securibenchmicro;
 
 import org.junit.Test;
 
@@ -14,6 +14,6 @@ public class ArraysTests extends JUnitTests {
 	@Test public void arrays6() {oneRun("securibench.micro.arrays.Arrays6", "doGet", TSA.FAILURE);}
 	@Test public void arrays7() {oneRun("securibench.micro.arrays.Arrays7", "doGet", TSA.FAILURE);}
 	@Test public void arrays8() {oneRun("securibench.micro.arrays.Arrays8", "doGet", TSA.FAILURE);}
-	// @Test public void arrays9() {oneRun("securibench.micro.arrays.Arrays9", "doGet", TypeBasedAnalysis.FAILURE);} // uses multi-arrays
-	// @Test public void arrays10() {oneRun("securibench.micro.arrays.Arrays10", "doGet", TypeBasedAnalysis.FAILURE);} // uses multi-arrays
+	@Test public void arrays9() {oneRun("securibench.micro.arrays.Arrays9", "doGet", TSA.FAILURE);} // uses multi-arrays
+	@Test public void arrays10() {oneRun("securibench.micro.arrays.Arrays10", "doGet", TSA.FAILURE);} // uses multi-arrays
 }

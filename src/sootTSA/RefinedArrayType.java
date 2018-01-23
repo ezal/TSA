@@ -10,14 +10,11 @@ import soot.Type;
 
 public class RefinedArrayType extends RefinedType {
 	private RefinedType refType;
+	private RefinedType refElemType;
 	
 	public RefinedType getRefinedType() {
 		return refType; 
 	}
-	
-//	private RefinedArrayType(RefinedObjectType t) {
-//		refType = t;
-//	}
 	
 	public RefinedArrayType(RefType c) {
 		if (RefinedType.isStringType(c))
@@ -45,26 +42,7 @@ public class RefinedArrayType extends RefinedType {
 			refType = new RefinedStringType(t);
 		else 
 			throw new RuntimeException("two dimensional arrays not supported");
-		
-		// OLD
-//		if (t instanceof RefinedArrayType)
-//			refType = ((RefinedArrayType)t).refType;
-//		else
-//			refType = new RefinedObjectType(t);
-	}
-
-//	public RefinedArrayType(RefType c, Region r) {
-//		refType = new RefinedObjectType(c, r);
-//	}
-//	
-//	public RefinedArrayType(RefType c, Set<Region> regs) {
-//		refType = new RefinedObjectType(c, regs);
-//	}
-	
-//	public RefinedArrayType(Boolean b) {
-//		refType = new RefinedObjectType(b);
-//	}
-	
+	}		
 	
 	@Override
 	public RefinedType join(RefinedType other) {
@@ -76,16 +54,6 @@ public class RefinedArrayType extends RefinedType {
 			throw new RuntimeException("unhandled case: " + other);
 		return new RefinedArrayType(joinType);
 	}
-
-//	@Override
-//	public RefinedType meet(RefinedType other) {
-//		RefinedObjectType meetType;
-//		if (other instanceof RefinedArrayType)
-//			meetType = (RefinedObjectType) refType.meet(((RefinedArrayType)other).refType);
-//		else
-//			meetType = (RefinedObjectType) refType.meet(other); 
-//		return new RefinedArrayType(meetType);
-//	}
 
 	@Override
 	public Boolean subType(RefinedType other) {

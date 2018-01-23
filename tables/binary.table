@@ -1,50 +1,50 @@
 # sources
-# javax.servlet.ServletRequest				getParameter			*	[(String, {U})]	(String, {T})	{U}
-# javax.servlet.ServletRequest				getParameter			*	[(String, {T})]	(String, {T})	{U}
-# javax.servlet.http.HttpServletRequest		getParameter			*	[(String, {U})]	(String, {T})	{U}
-# javax.servlet.http.HttpServletRequest		getParameter			*	[(String, {T})]	(String, {T})	{U}
-# javax.servlet.http.HttpServletRequest		getHeader				*	[(String, {U})]	(String, {T})	{U}
-# javax.servlet.http.HttpServletRequest		getHeader				*	[(String, {T})]	(String, {T})	{U}
-# javax.servlet.http.HttpServletRequest		getParameterValues		*	[(String, {U})]	(String[], {T})	{U}
-# javax.servlet.http.HttpServletRequest		getParameterValues		*	[(String, {T})]	(String[], {T})	{U}
-# javax.servlet.ServletConfig				getInitParameter		*	[(String, {U})]	(String, {T})	{U}
-# javax.servlet.ServletConfig				getInitParameter		*	[(String, {T})]	(String, {T})	{U}
-# javax.servlet.ServletContext				getInitParameter		*	[(String, {U})]	(String, {T})	{U}
-# javax.servlet.ServletContext				getInitParameter		*	[(String, {T})]	(String, {T})	{U}
-# com.oreilly.servlet.MultipartRequest		getParameter			*	[(String, {U})]	(String, {T})	{U}
-# com.oreilly.servlet.MultipartRequest		getParameter			*	[(String, {T})]	(String, {T})	{U}
-ourlib.nonapp.TaintAPI						getTaintedString		*	[]					(String, {T})	{U}
-ourlib.nonapp.SanitizersAPI		clean		*		[(String, {U})]			(String, {U})		{U}
-ourlib.nonapp.SanitizersAPI		clean		*		[(String, {T})]			(String, {U})		{U}
-java.net.URLEncoder				encode				*		[(String, {T}); (String, {U})]		(String, {U})		{U}
-java.net.URLEncoder				encode				*		[(String, {U}); (String, {U})]		(String, {U})		{U}
-java.net.URLDecoder				decode				*		[(String, {U}); (String, {U})]		(String, {T})		{U}
-java.net.URLDecoder				decode				*		[(String, {T}); (String, {U})]		(String, {T})		{U}
+# javax.servlet.ServletRequest				getParameter				[(String, {U})]	(String, {T})	{U}
+# javax.servlet.ServletRequest				getParameter				[(String, {T})]	(String, {T})	{U}
+# javax.servlet.http.HttpServletRequest		getParameter				[(String, {U})]	(String, {T})	{U}
+# javax.servlet.http.HttpServletRequest		getParameter				[(String, {T})]	(String, {T})	{U}
+# javax.servlet.http.HttpServletRequest		getHeader					[(String, {U})]	(String, {T})	{U}
+# javax.servlet.http.HttpServletRequest		getHeader					[(String, {T})]	(String, {T})	{U}
+# javax.servlet.http.HttpServletRequest		getParameterValues			[(String, {U})]	(String[], {T})	{U}
+# javax.servlet.http.HttpServletRequest		getParameterValues			[(String, {T})]	(String[], {T})	{U}
+# javax.servlet.ServletConfig				getInitParameter			[(String, {U})]	(String, {T})	{U}
+# javax.servlet.ServletConfig				getInitParameter			[(String, {T})]	(String, {T})	{U}
+# javax.servlet.ServletContext				getInitParameter			[(String, {U})]	(String, {T})	{U}
+# javax.servlet.ServletContext				getInitParameter			[(String, {T})]	(String, {T})	{U}
+# com.oreilly.servlet.MultipartRequest		getParameter				[(String, {U})]	(String, {T})	{U}
+# com.oreilly.servlet.MultipartRequest		getParameter				[(String, {T})]	(String, {T})	{U}
+ourlib.nonapp.TaintAPI						getTaintedString			[]					(String, {T})	{U}
+ourlib.nonapp.SanitizersAPI		clean				[(String, {U})]			(String, {U})		{U}
+ourlib.nonapp.SanitizersAPI		clean				[(String, {T})]			(String, {U})		{U}
+java.net.URLEncoder				encode						[(String, {T}); (String, {U})]		(String, {U})		{U}
+java.net.URLEncoder				encode						[(String, {U}); (String, {U})]		(String, {U})		{U}
+java.net.URLDecoder				decode						[(String, {U}); (String, {U})]		(String, {T})		{U}
+java.net.URLDecoder				decode						[(String, {T}); (String, {U})]		(String, {T})		{U}
 
 # sinks
-java.io.PrintWriter						println				*	[(String, {T})]	void	{T}
-java.io.PrintWriter						println				*	[(String, {U})]	void	{U}
-java.io.PrintWriter						println				*	[(java.lang.Object, {T})]	void	{T}
-java.io.PrintWriter						println				*	[(java.lang.Object, {U})]	void	{U}
-java.io.File								<init>					*	[(String, {T})]	void	{T}
-java.io.File								<init>					*	[(String, {U})]	void	{U}
-java.io.FileWriter							<init>					*	[(String, {T})]	void	{T}
-java.io.FileWriter							<init>					*	[(String, {U})]	void	{U}
-java.io.FileInputStream					<init>					*	[(String, {T})]	void	{T}
-java.io.FileInputStream					<init>					*	[(String, {U})]	void	{U}
-javax.servlet.Response			sendRedirect		*		[(String, {T})]			void				{T}
-javax.servlet.Response			sendRedirect		*		[(String, {U})]			void				{U}
-javax.servlet.http.HttpServletResponse		sendRedirect			*	[(String, {T})]	void	{T}
-javax.servlet.http.HttpServletResponse		sendRedirect			*	[(String, {U})]	void	{U}
-java.sql.Connection						prepareStatement		*	[(String, {T})]	(java.sql.PreparedStatement, {?})	{T}
-java.sql.Connection						prepareStatement		*	[(String, {U})]	(java.sql.PreparedStatement, {?})	{U}
-java.sql.Statement							execute				*	[(String, {T})]	boolean		{T}
-java.sql.Statement							execute				*	[(String, {U})]	boolean		{U}
-java.sql.Statement							executeUpdate			*	[(String, {T})]	int			{T}
-java.sql.Statement							executeUpdate			*	[(String, {U})]	int			{U}
-java.sql.Statement							executeUpdate			*	[(String, {T}); int]	int		{T}
-java.sql.Statement							executeUpdate			*	[(String, {U}); int]	int		{U}
-java.sql.Statement							executeUpdate			*	[(String, {T}); (java.lang.String[], {})]	int			{T}
-java.sql.Statement							executeUpdate			*	[(String, {U}); (java.lang.String[], {})]	int			{U}
-ourlib.nonapp.TaintAPI						outputString			*	[(String, {T})]	void	{T}
-ourlib.nonapp.TaintAPI						outputString			*	[(String, {U})]	void	{U}
+java.io.PrintWriter						println					[(String, {T})]	void	{T}
+java.io.PrintWriter						println					[(String, {U})]	void	{U}
+java.io.PrintWriter						println					[(java.lang.Object, {T})]	void	{T}
+java.io.PrintWriter						println					[(java.lang.Object, {U})]	void	{U}
+java.io.File								<init>						[(String, {T})]	void	{T}
+java.io.File								<init>						[(String, {U})]	void	{U}
+java.io.FileWriter							<init>						[(String, {T})]	void	{T}
+java.io.FileWriter							<init>						[(String, {U})]	void	{U}
+java.io.FileInputStream					<init>						[(String, {T})]	void	{T}
+java.io.FileInputStream					<init>						[(String, {U})]	void	{U}
+javax.servlet.Response			sendRedirect				[(String, {T})]			void				{T}
+javax.servlet.Response			sendRedirect				[(String, {U})]			void				{U}
+javax.servlet.http.HttpServletResponse		sendRedirect				[(String, {T})]	void	{T}
+javax.servlet.http.HttpServletResponse		sendRedirect				[(String, {U})]	void	{U}
+java.sql.Connection						prepareStatement			[(String, {T})]	(java.sql.PreparedStatement, {?})	{T}
+java.sql.Connection						prepareStatement			[(String, {U})]	(java.sql.PreparedStatement, {?})	{U}
+java.sql.Statement							execute					[(String, {T})]	boolean		{T}
+java.sql.Statement							execute					[(String, {U})]	boolean		{U}
+java.sql.Statement							executeUpdate				[(String, {T})]	int			{T}
+java.sql.Statement							executeUpdate				[(String, {U})]	int			{U}
+java.sql.Statement							executeUpdate				[(String, {T}); int]	int		{T}
+java.sql.Statement							executeUpdate				[(String, {U}); int]	int		{U}
+java.sql.Statement							executeUpdate				[(String, {T}); (java.lang.String[], {})]	int			{T}
+java.sql.Statement							executeUpdate				[(String, {U}); (java.lang.String[], {})]	int			{U}
+ourlib.nonapp.TaintAPI						outputString				[(String, {T})]	void	{T}
+ourlib.nonapp.TaintAPI						outputString				[(String, {U})]	void	{U}

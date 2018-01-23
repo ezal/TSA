@@ -18,7 +18,7 @@ public class FieldTable {
 	
 	public FieldTable(FieldTable fTable) {
 		for (Entry<RefType, Map<Region,  Map<SootField, 
-				RefinedType>>> cEntry: fTable.table.entrySet()) 
+				RefinedType>>> cEntry: fTable.table.entrySet())
 		{
 			RefType c = cEntry.getKey();	
 			for (Entry<Region, Map<SootField, RefinedType>> rEntry: cEntry.getValue().entrySet()) 

@@ -1,6 +1,5 @@
 package sootTSA;
 
-import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -20,11 +19,9 @@ import soot.SootField;
 import soot.SootMethod;
 import soot.SootMethodRef;
 import soot.Type;
-import soot.VoidType;
 import soot.toolkits.graph.ExceptionalUnitGraph;
-import soot.util.Chain;
-import soot.util.HashChain;
 import soot.util.NumberedString;
+
 
 public class InterProcAnalysis {
 	TypingInfo typeInfo;
@@ -37,11 +34,12 @@ public class InterProcAnalysis {
 	
 	private Map<SootMethodRef, ExceptionalUnitGraph> cfgs;
 	
+	private Context topCtx;
 	private Region thisRegion;
 	private List<RefinedType> epArgRefTypes;
 	
 	public Effects getEffects() {
-		TypeAndEffects te = state.mTable.get(typeInfo.epMethod.makeRef(), thisRegion, epArgRefTypes);
+		TypeAndEffects te = state.mTable.get(typeInfo.epMethod.makeRef(), topCtx, thisRegion, epArgRefTypes);
 		return te.effects;
 	}
 	
@@ -91,9 +89,11 @@ public class InterProcAnalysis {
 			}
 		}
 		
+		topCtx = TSA.getTopContext();
+		
 		if (m.isStatic()) 
 			thisRegion = TSA.nilRegion;
-		else			
+		else
 			thisRegion = new PosRegion("I", 0);
 		
 		RefinedType retType = RefinedType.initRefinedType(m.getReturnType(), null);
@@ -101,7 +101,7 @@ public class InterProcAnalysis {
 		TypeAndEffects typeAndEffect = new TypeAndEffects(retType, effects);
 
 		// TODO: need to call addToMethodTable instead??
-		state.mTable.put(m.makeRef(), thisRegion, epArgRefTypes, typeAndEffect);
+		state.mTable.put(m.makeRef(), topCtx, thisRegion, epArgRefTypes, typeAndEffect);
 		
 		overrides = new TreeMap<SootMethodRef, Set<SootMethod>>(new ToStringComparator<SootMethodRef>());		
 		inheritedFrom = new TreeMap<SootMethodRef, SootClass>(new ToStringComparator<SootMethodRef>());
@@ -219,7 +219,6 @@ public class InterProcAnalysis {
 	}
 	
 	public void doAnalysis(int maxIter) {
-		Set<SootClass> staticInitClasses = new TreeSet<SootClass>(new ToStringComparator<SootClass>());
 		// Main.mainLog.info("[InterProcAnalysis] initial mTable:\n" + mTable);
 		InterProcState oldState = null;
 		do {
@@ -235,54 +234,35 @@ public class InterProcAnalysis {
 			
 			// we go through each entry in the method table
 			// more precisely, we first go through each method
-			// TODO: this is inefficient, as we probably do not need to do this:
-			// we probably just need to go through the "new" entries
-			for (Entry<SootMethodRef, Map<Region, Map<List<RefinedType>, TypeAndEffects>>> mEntry: oldState.mTable.getTable().entrySet()) 
+			for (Entry<SootMethodRef, Map<Context, Map<Region, Map<List<RefinedType>, TypeAndEffects>>>> mEntry: oldState.mTable.getTable().entrySet()) 
 			{
 				SootMethodRef mRef = mEntry.getKey();
 				SootClass c = mRef.declaringClass();
-//				if (!c.equals(TypeBasedAnalysis.getDeclaringClass(mRef))) {
-//					Main.mainLog.severe("entries in the tables should only be for methods declared in some class");
-//					throw new RuntimeException("internal error");
-//				}
 				
 				Main.mainLog.info("====== Analyzing method: " + mRef + " (class: " + c + ")");
-
-				if (c.isApplicationClass() && c.declaresMethodByName("<clinit>") && !staticInitClasses.contains(c)) {
-					Main.mainLog.info("class with static initializer: " + c);
-					staticInitClasses.add(c);
-					SootMethod staticInit = c.getMethodByName("<clinit>");
-					SootMethodRef staticInitRef = staticInit.makeRef();
-					if (!staticInit.isStaticInitializer())
-						throw new RuntimeException("internal error");
-					 
-					if (!oldState.mTable.getTable().containsKey(staticInitRef)) {
-						RefinedType refType = RefinedType.initRefinedType(staticInit.getReturnType(), null);
-						state.mTable.put(staticInitRef, 
-								TSA.nilRegion, 
-								new LinkedList<RefinedType>(),
-								new TypeAndEffects(refType, new Effects(false)));
-					}
-				}
 				
 				ExceptionalUnitGraph unitGraph = getCFG(c, mRef);
-				if (unitGraph != null) { // that is, the method has a body				
-					for (Entry<Region, Map<List<RefinedType>, TypeAndEffects>> rEntry: mEntry.getValue().entrySet()) 
+				if (unitGraph != null) { // that is, the method has a body
+					for (Entry<Context, Map<Region, Map<List<RefinedType>, TypeAndEffects>>> cEntry: mEntry.getValue().entrySet()) 
 					{
-						Region rThis = rEntry.getKey();
-						for (Entry<List<RefinedType>, TypeAndEffects> aEntry: rEntry.getValue().entrySet()) {
-							List<RefinedType> argsTypes = aEntry.getKey();
-							TypeAndEffects retTypeAndEffects = aEntry.getValue();
+						Context ctx = cEntry.getKey();
+						for (Entry<Region, Map<List<RefinedType>, TypeAndEffects>> rEntry: cEntry.getValue().entrySet()) 
+						{
+							Region rThis = rEntry.getKey();
+							for (Entry<List<RefinedType>, TypeAndEffects> aEntry: rEntry.getValue().entrySet()) {
+								List<RefinedType> argsTypes = aEntry.getKey();
+								TypeAndEffects retTypeAndEffects = aEntry.getValue();
 
-							Main.mainLog.info("==== Analyzing entry: " + mRef + " for " + rThis + " " + argsTypes + " => " + retTypeAndEffects + "\n");
+								Main.mainLog.info("==== Analyzing entry: " + mRef + " for " + rThis + " " + argsTypes + " => " + retTypeAndEffects + "\n");
 
-							IntraProcAnalysis intra = new IntraProcAnalysis(this, mRef, unitGraph, typeInfo, state, rThis, argsTypes, retTypeAndEffects);
-							
-							state = intra.getOutState();
-							TypeAndEffects newRetTypeAndEffects = state.mTable.get(mRef, rThis, argsTypes);
-							if (!retTypeAndEffects.equals(newRetTypeAndEffects))
-								Main.mainLog.info("old type and effects: " + retTypeAndEffects + " new type and effects: "+ newRetTypeAndEffects);
-							Main.mainLog.info("==== Done analyzing entry\n");
+								IntraProcAnalysis intra = new IntraProcAnalysis(this, mRef, unitGraph, typeInfo, state, ctx, rThis, argsTypes, retTypeAndEffects);
+
+								state = intra.getOutState();
+								TypeAndEffects newRetTypeAndEffects = state.mTable.get(mRef, ctx, rThis, argsTypes);
+								if (!retTypeAndEffects.equals(newRetTypeAndEffects))
+									Main.mainLog.info("old type and effects: " + retTypeAndEffects + " new type and effects: "+ newRetTypeAndEffects);
+								Main.mainLog.info("==== Done analyzing entry\n");
+							}
 						}
 					}
 				}

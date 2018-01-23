@@ -24,14 +24,6 @@ public class IntraProcState {
 		this.refTypes = depMap;
 	}
 
-	public Effects getEffects() {
-		return effects;
-	}
-
-	public void setEffects(Effects e) {
-		effects = e;
-	}
-
 	public RefinedType getRefType(Local v) {
 		return refTypes.get(v);
 	}
@@ -54,26 +46,6 @@ public class IntraProcState {
 	    	RefinedType refType = refTypes.get(v);
 	    	if (!(refType instanceof RefinedNonRefType))
 	    		str += v + " -> " + refType + "; ";
-
-	    		/* OLD:
-	    		RefinedRefType type = (RefinedRefType)refType;
-	    		Set<Region> regs = type.getRegions();
-	    		if (RefinedType.isStringType(type.getType())) {
-	    			if (regs.size() == 1) {
-	    				if (regs.iterator().next() != Main.goodRegion)
-	    					str += v + " --> " + refType + "; ";
-	    			} else {
-//	    				if (regs.size() == 0)
-//	    					throw new RuntimeException("String with no region: " + v);
-	    				str += v + " --> " + refType + "; ";
-	    			}		
-	    		} else // if (regs.size() != 1 || (regs.size() != 0 && regs.iterator().next() != Main.nilRegion))
-	    			str += v + " --> " + refType + "; ";
-	    	}
-//	    	else {
-//	    		str += v + " --> " + refType + "; ";
-//	    	}
- */
 	    }
 		str += "}";
 		return str;

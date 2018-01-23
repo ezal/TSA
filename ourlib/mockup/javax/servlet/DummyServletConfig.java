@@ -26,7 +26,7 @@ public class DummyServletConfig implements ServletConfig {
 	}
 
 	@Override
-	public Enumeration getInitParameterNames() {
+	public Enumeration<?> getInitParameterNames() {
 		String s = TaintAPI.getTaintedString();
 		return new StringTokenizer(s);
 	}

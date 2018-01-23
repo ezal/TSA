@@ -7,8 +7,16 @@ public class PosRegion implements Region {
 	private int r;
 
 	public PosRegion(String s, int n) {
+		// System.out.println("new region: " + s + ":" + n);
 		str = s;
 		r = n;
+	}
+	
+	public String getString() {
+		return str;
+	}
+	public void setString(String s) {
+		str = s;
 	}
 
 	public String toString() {

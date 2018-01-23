@@ -1,4 +1,4 @@
-package tests.securibenchmicro;
+package securibenchmicro;
 
 import org.junit.Test;
 

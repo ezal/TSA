@@ -7,6 +7,8 @@ import ourlib.nonapp.TaintAPI;
 
 public class PrintWriter extends Writer {
 
+	PrintWriter(String s) {}
+	
 	@Override
 	public void close() throws IOException {
 		// TODO Auto-generated method stub
@@ -28,6 +30,10 @@ public class PrintWriter extends Writer {
 	public void println(Object obj) {
 		if (obj instanceof String) {
 			TaintAPI.outputString((String)obj); 
+		}
+		else if (obj instanceof Collection<?>) {
+			Collection<?> c = (Collection<?>)obj;
+			println(c.iterator().next());
 		}
 	}
 

@@ -47,7 +47,7 @@ public class TypeMap
 		nameMap.put("java.io.BufferedReader", "mockup.misc.BufferedReader");
 		
 		nameMap.put("com.oreilly.servlet.MultipartRequest", "mockup.com.oreilly.servlet.MultipartRequest");
-		// nameMap.put("java.io.PrintWriter", "mockup.misc.PrintWriter");
+		nameMap.put("java.io.PrintWriter", "mockup.misc.PrintWriter");
 	}
 	
 	private Map<RefType, RefType> newTypes = 

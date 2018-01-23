@@ -25,12 +25,4 @@ public class Pair<F, S> {
     public int hashCode() {
     	return Objects.hash(first, second);
     }
-
-//	@Override
-//	public int compareTo(Pair<F, S> o) {
-//		if (first.equals(o.first))
-//			return second.compareTo(o.second);
-//		
-//		return first.compareTo(o.first);
-//	}
 }

@@ -10,7 +10,7 @@ import soot.NullType;
 import soot.RefType;
 import soot.Scene;
 
-// TODO: Why do we need this class? Couldn't we use RefinedObjectType instead?
+// NOTE: Maybe we could simply use the RefinedObjectType class instead?
 public class RefinedStringType extends RefinedType {
 	Set<Monoid> annot;
 
@@ -64,12 +64,6 @@ public class RefinedStringType extends RefinedType {
 		}
 		throw new RuntimeException("internal error");
 	}
-
-//	@Override
-//	public RefinedStringType meet(RefinedType t2) {
-//		Effects a2 = ((RefinedStringType)t2).annot;
-//		return new RefinedStringType(annot.intersect(a2));
-//	}
 	
 	@Override
 	public Boolean subType(RefinedType other) {

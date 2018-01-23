@@ -1,4 +1,4 @@
-package tests.ourexamples;
+package ourexamples;
 
 import org.junit.Test;
 
@@ -23,4 +23,8 @@ public class SimpleTests extends JUnitTests {
 	@Test public void libexample() {oneRun("simple_ones.LibExample", "doGet", TSA.FAILURE);}
 	@Test public void large1() {oneRun("simple_ones.ListNode", "bad", TSA.FAILURE);}
 	@Test public void large2() {oneRun("simple_ones.ListNode", "ok", TSA.SUCCESS);}
+	@Test public void sf() {oneRun("simple_ones.StaticField1", "m", TSA.FAILURE);}
+	@Test public void sf2() {oneRun("simple_ones.StaticField2", "m", TSA.FAILURE);}
+	@Test public void objarray() {oneRun("simple_ones.ObjectArray", "main", TSA.FAILURE);}
+	@Test public void g() {oneRun("simple_ones.G", "m", 1, TSA.SUCCESS);}
 }

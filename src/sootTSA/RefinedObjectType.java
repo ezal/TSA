@@ -47,13 +47,6 @@ public class RefinedObjectType extends RefinedType {
 		regions = regs;
 	}
 	
-//	public RefinedObjectType(Boolean b) {
-//		Region r = b ? Main.badRegion : Main.goodRegion;		
-//		RefinedObjectType t = new RefinedObjectType(RefinedType.getStringType(), r);
-//		cls = t.cls;
-//		regions = t.regions;
-//	}
-
 	public RefType getType() {
 		return cls;
 	}
@@ -130,17 +123,6 @@ public class RefinedObjectType extends RefinedType {
 		return out;
 	}
 	
-//	@Override
-//	public RefinedType meet(RefinedType t2) {
-//		RefinedObjectType ot2 = (RefinedObjectType)t2;
-//		// System.out.println("[RefinedType.meet] cls1 = " + cls + " cls2 = " + ot2.cls);
-//		assert(cls.equals(ot2.cls));
-//		Set<Region> newRegions = new TreeSet<Region>(regions);
-//		newRegions.retainAll(ot2.regions);
-//		RefinedObjectType out = new RefinedObjectType(cls, newRegions);		
-//		return out;
-//	}
-
 	public static Boolean isTypeSubTypeOf(SootClass c1, SootClass c2) {
 		Hierarchy h = Scene.v().getActiveHierarchy();
 		// Main.mainLog.finest("Is " + c1 + " a subtype of " + c2 + "?");
@@ -167,9 +149,9 @@ public class RefinedObjectType extends RefinedType {
 	@Override
 	public int compareTo(RefinedType other) {
 		if (other instanceof RefinedNonRefType || other instanceof RefinedStringType)
-			return -1;
-		else if (other instanceof RefinedArrayType)
 			return 1;
+		else if (other instanceof RefinedArrayType)
+			return -1;
 		
 		RefinedObjectType objType = (RefinedObjectType)other;
 		if (this == objType)

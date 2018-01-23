@@ -48,55 +48,33 @@ public class InterProcState {
     		}
     }
     
-//    public TypeAndEffects getMethodTypeAndEffects(SootMethodRef mRef, SootClass c, Region r, List<RefinedType> argTypes) {
-//    	TypeAndEffects typeAndEffects;
-//		if (mTable.containsKey(mRef, r, argTypes)) 
-//			typeAndEffects = mTable.get(mRef, r, argTypes);
-//		else {
-//			Type retType = mRef.returnType();
-//			Boolean library = c.isLibraryClass();
-//			if (library) {
-//				typeAndEffects = typeInfo.mTable.getMatch(mRef, r, argTypes);
-//				if (typeAndEffects == null) 
-//					typeAndEffects = TypeAndEffects.initTypeAndEffects(retType, library);
-//			}
-//			else  
-//				typeAndEffects = TypeAndEffects.initTypeAndEffects(retType, !library);
-//		}
-//		return typeAndEffects;		
-//	}
-
     public TypeAndEffects initTypeAndEffects(SootMethodRef mRef, SootClass c, Region r, List<RefinedType> argTypes) {
     	TypeAndEffects typeAndEffects;
     	Type retType = mRef.returnType();
     	Boolean library = c.isLibraryClass();
     	if (library) {
-    		typeAndEffects = typeInfo.mTable.getMatch(mRef, r, argTypes);
+    		typeAndEffects = typeInfo.mTable.getMatch(mRef, argTypes);
     		if (typeAndEffects == null) 
     			typeAndEffects = TypeAndEffects.initTypeAndEffects(retType, library);
     	}
-    	else  
-    		typeAndEffects = TypeAndEffects.initTypeAndEffects(retType, !library);
+    	else
+    		typeAndEffects = TypeAndEffects.initTypeAndEffects(retType, library);
 
 		return typeAndEffects;		
 	}
     
     // Add a new entry in the table, and then close it by "supertyping" 
     // (thus ensuring well-formedness)
-    void addToMethodTable(SootMethodRef mRef, Region r, List<RefinedType> argTypes, TypeAndEffects newTypeAndEffects) {    	
-//    	if (!c.equals(mRef.declaringClass())) {
-//    		System.out.println("c = " + c + " mRef = " + mRef + " declaring class is " + mRef.declaringClass());
-//    		throw new RuntimeException("internal error");
-//    	}
+    void addToMethodTable(SootMethodRef mRef, Context ctx, Region r, List<RefinedType> argTypes, TypeAndEffects newTypeAndEffects) {    	
     	SootClass c = mRef.declaringClass();
     	Main.mainLog.finer("args: " + mRef + ", " + r + ", " + argTypes + ": " + newTypeAndEffects);
     	
     	// update current entry if needed
     	TypeAndEffects oldTypeAndEffects, updatedTypeAndEffects;
     	boolean existingEntry;
-    	if (mTable.containsKey(mRef, r, argTypes)) {
+    	if (mTable.containsKey(mRef, ctx, r, argTypes)) {
     		Main.mainLog.finer("outState.mTable contains entry");
-			oldTypeAndEffects = mTable.get(mRef, r, argTypes);
+			oldTypeAndEffects = mTable.get(mRef, ctx, r, argTypes);
 			existingEntry = true;
     	}
     	else {
@@ -113,7 +91,7 @@ public class InterProcState {
 		if (!existingEntry || !updatedTypeAndEffects.equals(oldTypeAndEffects)) {
 			String expl = existingEntry ? "updated" : "new";
 			Main.mainLog.finer(expl + " entry for " + mRef + ", " + r + ", " + argTypes + ": " + updatedTypeAndEffects);
-			mTable.put(mRef, r, argTypes, updatedTypeAndEffects);
+			mTable.put(mRef, ctx, r, argTypes, updatedTypeAndEffects);
 		}
 		else {
 			Main.mainLog.finer("existing entry, no update needed for " + mRef + ", " + r + ", " + argTypes + ": " + updatedTypeAndEffects);
@@ -125,13 +103,13 @@ public class InterProcState {
 				SootClass sCls = c.getSuperclass();
 				SootMethodRef newRef = Scene.v().makeMethodRef(sCls, 
 						mRef.name(), mRef.parameterTypes(), mRef.returnType(), mRef.isStatic());
-				addToMethodTable(newRef, r, argTypes, updatedTypeAndEffects);
+				addToMethodTable(newRef, ctx, r, argTypes, updatedTypeAndEffects);
 			}
 			Chain<SootClass> superCls = c.getInterfaces();
 			for (SootClass sIntf: superCls) {
 				SootMethodRef newRef = Scene.v().makeMethodRef(sIntf, 
 						mRef.name(), mRef.parameterTypes(), mRef.returnType(), mRef.isStatic());
-				addToMethodTable(newRef, r, argTypes, updatedTypeAndEffects);
+				addToMethodTable(newRef, ctx, r, argTypes, updatedTypeAndEffects);
 			}
 		}
     }
@@ -170,25 +148,6 @@ public class InterProcState {
 		
 		InterProcState other = (InterProcState) obj;
 		
-//		if (mTable.equals(other.mTable)) {
-//			System.out.println("equal method table");
-//		}
-//		else {
-//			System.out.println("different method table");
-//		}
-//		
-//		if (fTable.equals(other.fTable)) {
-//			System.out.println("equal field table");
-//		}
-//		else {
-//			System.out.println("different field table");
-//		}
-//		if (typePool.equals(other.typePool)) {
-//			System.out.println("equal type pool");
-//		}
-//		else {
-//			System.out.println("different type pool");
-//		}
 		return (mTable.equals(other.mTable) && fTable.equals(other.fTable) && typePool.equals(other.typePool));
 	}
 }

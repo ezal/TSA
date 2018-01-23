@@ -110,7 +110,7 @@ EXECUTION
 The tool takes 5 arguments, two of them optional, and it can be
 invoked from the command line as follows:
 
-Main <app_path> <class> <method> <monoid> [<log-level>] [<to-file>]
+Main <app_path> <class> <method> <monoid> [<kCFA>] [<log-level>] [<to-file>]
 
 
 Our tool is implemented on top of Soot. To run Soot properly, we need
@@ -157,11 +157,14 @@ relative to the parent directory (of the tool's top directory).
   'monoids' package of our implementation. Currently the following
   monoids are specified: "binary", "xss", and "authorization".
 
-4) <log-level>: the debugging level (from FINEST to SEVERE, see
+4) <kCFA>: represents the bound on the depth of the call string context
+   (i.e. the k in k-CFA); it is 0 by default
+
+5) <log-level>: the debugging level (from FINEST to SEVERE, see
    java.util.Logging.Level; FINEST corresponds to highest amount of
    output messages); the default is WARNING
 
-5) <to-file>: a Boolean flag (i.e. "true" or "false") selecting
+6) <to-file>: a Boolean flag (i.e. "true" or "false") selecting
    whether the output is written on the console or in a file ("true"
    corresponds to file output); the file is DIR/logs/<class>.log,
    where DIR represents the path to the 'sootTSA' project, and <class>

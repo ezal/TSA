@@ -8,13 +8,9 @@ import soot.Scene;
 import soot.Type;
 
 public abstract class RefinedType implements Comparable<RefinedType> {
-//	public abstract RefinedType getTop();
-//	public abstract RefinedType getBot();
 	public abstract RefinedType join(RefinedType other);
-	// public abstract RefinedType meet(RefinedType other);
 	public abstract Boolean subType(RefinedType other); // non-strict
 	
-	// public abstract int compareTo(RefinedType other);
 	// NOTE: We currently have 4 subclasses with the following ordering on their objects: 
 	// RefinedNonRefType < RefinedStringType < RefinedObjectType < RefinedArrayType
 
@@ -34,7 +30,7 @@ public abstract class RefinedType implements Comparable<RefinedType> {
 			if (isStringType(t))
 				return new RefinedStringType();
 			else
-				return new RefinedObjectType((RefType)t, initReg); // TODO: no region instead?
+				return new RefinedObjectType((RefType)t, initReg);
 		else if (t instanceof ArrayType) {
 			Type et = ((ArrayType)t).getElementType();
 			if (et instanceof RefType)
@@ -74,22 +70,4 @@ public abstract class RefinedType implements Comparable<RefinedType> {
 		}
 		return res;
 	}
-	
-//	public static RefinedType meet(Set<RefinedType> types) {
-//		assert(!types.isEmpty());
-//		int i = 0;
-//		RefinedType res = null;
-//		for (RefinedType typ: types) {
-//			i++;
-//			if (i == 1) {
-//				if (typ instanceof RefinedObjectType)
-//					res = new RefinedObjectType(typ);
-//				else
-//					throw new RuntimeException("[meet] unknown refined type");
-//			}
-//			else
-//				res = res.meet(typ);
-//		}
-//		return res;
-//	}
 }

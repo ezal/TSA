@@ -1,11 +1,11 @@
 # typing of external methods:
-ourlib.nonapp.TaintAPI	getTaintedString	*		[]							(String, {Input})	{Lit}
-ourlib.nonapp.XSSAPI	escapeToHtml		*		[(String, {Input})]			(String, {C1})		{Lit}
-ourlib.nonapp.XSSAPI	escapeToJs			*		[(String, {Input})]			(String, {C2})		{Lit}
-ourlib.nonapp.XSSAPI	output				*		[(String, {Lit})]			void				{Lit}
-ourlib.nonapp.XSSAPI	output				*		[(String, {C1})]			void				{C1}
-ourlib.nonapp.XSSAPI	output				*		[(String, {C2})]			void				{C2}
-ourlib.nonapp.XSSAPI	output				*		[(String, {Script})]		void				{Script}
-ourlib.nonapp.XSSAPI	output				*		[(String, {EndScript})]		void				{EndScript}
-ourlib.nonapp.XSSAPI	output				*		[(String, {Input})]			void				{Input}
-ourlib.nonapp.XSSAPI	output				*		[(String, {C2EndScript})]	void				{C2EndScript}
+ourlib.nonapp.TaintAPI	getTaintedString			[]							(String, {Input})	{Lit}
+ourlib.nonapp.XSSAPI	escapeToHtml				[(String, {Input})]			(String, {C1})		{Lit}
+ourlib.nonapp.XSSAPI	escapeToJs					[(String, {Input})]			(String, {C2})		{Lit}
+ourlib.nonapp.XSSAPI	output						[(String, {Lit})]			void				{Lit}
+ourlib.nonapp.XSSAPI	output						[(String, {C1})]			void				{C1}
+ourlib.nonapp.XSSAPI	output						[(String, {C2})]			void				{C2}
+ourlib.nonapp.XSSAPI	output						[(String, {Script})]		void				{Script}
+ourlib.nonapp.XSSAPI	output						[(String, {EndScript})]		void				{EndScript}
+ourlib.nonapp.XSSAPI	output						[(String, {Input})]			void				{Input}
+ourlib.nonapp.XSSAPI	output						[(String, {C2EndScript})]	void				{C2EndScript}

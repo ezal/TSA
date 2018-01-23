@@ -1,4 +1,4 @@
-package tests.securibenchmicro;
+package securibenchmicro;
 
 import org.junit.Test;
 
@@ -17,7 +17,7 @@ public class SanitizersTests extends JUnitTests {
 /*
 NOTES:
 
-As we do not analyze the santization method (e.g. clean), 
+As we do not analyze the sanitization method (e.g. clean), 
 we cannot distinguish between a correct sanitization method and an incorrect one.
 This is why in the Sanitizers4 example the call
   writer.println("<html>" + clean + "</html>");                  // BAD
